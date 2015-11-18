@@ -199,15 +199,39 @@ do_setup_configservice () {
 	done
 } # end do_setup_configservice()
 
+do_password_policy () {
+	cat <<- EOP > /tmp/password_skel.json
+	{
+	    "AllowUsersToChangePassword": true,
+	    "RequireLowercaseCharacters": true,
+	    "RequireUppercaseCharacters": true,
+	    "MinimumPasswordLength": 8,
+	    "RequireNumbers": true,
+	    "HardExpiry": false,
+	    "RequireSymbols": true,
+	    "MaxPasswordAge": 180
+	}
+	EOP
+	aws iam update-account-password-policy --cli-input-json file:///tmp/password_skel.json
+	if [ $? -eq 0 ] ; then
+		echo "Account Password Policy Set"
+		rm /tmp/password_skel.json
+	else
+		echo "Error setting password policy. Problem might be in /tmp/password_skel.json"
+	fi
+} # end do_password_policy
+
 show_status () {
 
+	aws iam get-account-password-policy --output=table
+exit
 	# Lets do some regional status stuff at the end
 	for region in $REGIONS ; do 
 		echo "Checking status of things in $region"
 		aws cloudtrail describe-trails --output=table --region=$region
 		aws cloudtrail get-trail-status --output=table --name Default --region=$region
-		# aws configservice get-status --region=$region
-		# aws configservice describe-delivery-channels | grep -i name
+		aws configservice get-status --region=$region
+		aws configservice describe-delivery-channels --output=text
 		echo "Press Any Key to Continue..."
 		read
 	done
@@ -218,4 +242,5 @@ show_status () {
 # do_create_admin_group
 # do_setup_cloudtrail
 # do_setup_configservice
+# do_password_policy
 show_status
