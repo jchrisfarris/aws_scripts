@@ -68,6 +68,6 @@ ch_region () {
 
 	echo "Changing region to $1"
 	export AWS_DEFAULT_REGION=$1
-	export PS1="\[\033[$COLOR\][\u@\h \W] AWS-$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
+	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@AWS-$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 
 }
