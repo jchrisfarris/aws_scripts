@@ -1,11 +1,11 @@
 {
   "Version": "2012-10-17",
   "Statement":[{
-      "Action":["ec2:*"],
+      "Action":["*"],
       "Effect":"Allow",
       "Resource":["*"],
       "Condition":{
-         "NumericLessThan":{"aws:MultiFactorAuthAge":"300"}
+         "NumericLessThan":{"aws:MultiFactorAuthAge":"3600"}
       }
     }
   ]
