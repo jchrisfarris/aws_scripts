@@ -54,13 +54,14 @@ if [ -z "$AWSUSER" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_
 fi
 
 echo "Adding new credentials for $AWS_ACCESS_KEY_ID to OSX Keychain"
-security add-generic-password -U -a AWS_ACCESS_KEY_ID -c AWSK -D AWS_ACCESS_KEY_ID -s $AWSUSER -l AWS-$ACCOUNT -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
-security add-generic-password -U -a AWS_SECRET_ACCESS_KEY -c AWSK -D AWS_SECRET_ACCESS_KEY -s $AWSUSER -l AWS-$ACCOUNT -w $AWS_SECRET_ACCESS_KEY
+KEYCHAIN_ENTRY="${AWSUSER}@${AWS_DEFAULT_PROFILE}"
+security add-generic-password -U -c AWSK -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
+security add-generic-password -U -c AWSK -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w $AWS_SECRET_ACCESS_KEY
 
-echo -n "Added AWS_ACCESS_KEY_ID for $AWSUSER in AWS-$ACCOUNT: "
-security find-generic-password -s $AWSUSER -l AWS-$ACCOUNT -a AWS_ACCESS_KEY_ID -w
-echo -n "Added AWS_SECRET_ACCESS_KEY for $AWSUSER in AWS-$ACCOUNT (truncated for security): "
-security find-generic-password -s $AWSUSER -l AWS-$ACCOUNT -a AWS_SECRET_ACCESS_KEY -w | cut -c1-30
+echo -n "Added AWS_ACCESS_KEY_ID for $AWSUSER in $ACCOUNT: "
+security find-generic-password -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w
+echo -n "Added AWS_SECRET_ACCESS_KEY for $AWSUSER in $ACCOUNT (truncated for security): "
+security find-generic-password -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w | cut -c1-30
 
 export AWS_ACCESS_KEY_ID
 export AWS_SECRET_ACCESS_KEY
