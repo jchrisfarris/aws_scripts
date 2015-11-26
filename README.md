@@ -3,7 +3,7 @@
 A pile of tools I'm creating for managing AWS resources. 
 
 Scripts
-=======
+-------
 *Most of these scripts assume you use aws_account.sh*
 
 API Key Management Scripts
@@ -14,3 +14,19 @@ API Key Management Scripts
 
 Instance Scripts
 * **update_my_route53.sh** - applies the dnsname tag via Route53.
+
+
+Billing Scripts
+* **calc_bucket_costs.rb** - Figures out the cost of storage for each bucket. Probably not super scalable, so use at your own risk.
+
+
+Other Scripts
+* **enable_ssh_for_my_ip.rb** - This will allow you to add or remove your current IP port 22 from a tag instances security group. Obvs requires you to have API access. 
+* **new_account_config.sh** - Does things to a brand new account for security & billing purposes. 
+
+Scripts to write
+* check_api_key_expiration - looks for users where the api key is over X days old. 
+* cost_allocation_breakdown - Grab the detailed billing report, iterate the costs by cost-allocaton tag and by service. Last month and Month-to-date.  
+* cloudformation manager. - strips comments, uploads to bucket, checks dependencies, builds answer file, creates stack. 
+* cloudformation cleanup - finds templates not in use and deletes them to clean up cfn buckets
+* role/policy/group manager - github/jenkins/chef like service for updating managed policies/roles/groups and instance profiles. 
