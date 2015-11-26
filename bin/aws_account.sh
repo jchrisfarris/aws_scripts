@@ -79,3 +79,7 @@ ch_region () {
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@AWS-$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 
 }
+
+
+# Here are some aliases
+alias "li"="aws ec2 describe-instances --output=text --query 'Reservations[].Instances[].{InstanceId:InstanceId,Status:State.Name,Type:InstanceType,PublicIpAddress:PublicIpAddress}'"
