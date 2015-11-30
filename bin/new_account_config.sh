@@ -174,7 +174,7 @@ do_setup_cloudtrail() {
 	for region in $REGIONS ; do 
 
 		# Is there a trail already?
-		C=`aws cloudtrail describe-trails --trail-name Default --output=text | wc -l`
+		C=`aws cloudtrail describe-trails --region=$region --trail-name Default --output=text | wc -l`
 		if [ $C -eq 0 ] ; then
 			# We need to create the trail
 			ACTION="create-trail"
