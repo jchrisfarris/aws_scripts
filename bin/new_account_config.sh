@@ -96,10 +96,17 @@ if [ ! -d $POLICY_PATH ] ; then
 	exit 1
 fi
 
+# Ok, alex tells me dots in my bucket names mess up the ssl cert when accessing the bucket via bucketname.s3.awsamazon.com. Lets fixor that
+echo $DOMAIN | grep -F . 
+if [ $? -eq 0 ] ; then
+	DOMAIN=`echo $1 | sed s/\\./-/g`
+	echo "Bucket names shouldn't contain periods. changing $1 to $DOMAIN"
+fi
+
 echo "Using $DOMAIN as my bucket suffix and $ACCOUNT_ID as my AWS Account Number"
 
 # this needs global definition
-LOG_BUCKET="logs.$DOMAIN"
+LOG_BUCKET="logs-$DOMAIN"
 
 # This will create the bucket that all the billing, cloudtrail and config service reports will dump into
 create_logging_bucket() {

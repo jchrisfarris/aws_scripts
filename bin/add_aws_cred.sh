@@ -12,7 +12,7 @@ if [ `uname` != "Darwin" ] ; then
 	exit 1
 fi
 
-if [ ! -f $CSV_FILE ] ; then
+if [ ! -f "$CSV_FILE" ] ; then
 	echo "Can't open the credentials file. Aborting"
 	echo "Usage: $0 credentials.csv account_profile_string"
 	exit 1
