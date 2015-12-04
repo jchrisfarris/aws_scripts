@@ -32,14 +32,23 @@ if [ -z "$AWSUSER" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_
 	exit 1
 fi
 
-KEYCHAIN_ENTRY="${AWSUSER}@${AWS_DEFAULT_PROFILE}"
-security add-generic-password -c AWSK -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
-security add-generic-password -c AWSK -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w $AWS_SECRET_ACCESS_KEY
+KEYCHAIN_ENTRY="${AWSUSER}@${ACCOUNT}"
+security add-generic-password -c AWSK -D AWS_ACCESS_KEY_ID -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
+#echo $AWS_SECRET_ACCESS_KEY
+security add-generic-password -c AWSK -D AWS_SECRET_ACCESS_KEY -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w "${AWS_SECRET_ACCESS_KEY}"
+
+
+
+#echo security add-generic-password -c AWSK -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
+#echo security add-generic-password -c AWSK -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w $AWS_SECRET_ACCESS_KEY
 
 echo -n "Added AWS_ACCESS_KEY_ID for $AWSUSER in $ACCOUNT: "
 security find-generic-password -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w
 echo -n "Added AWS_SECRET_ACCESS_KEY for $AWSUSER in $ACCOUNT (truncated for security): "
 security find-generic-password -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w | cut -c1-30
+
+#echo security add-generic-password -c AWSK -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w \"$AWS_SECRET_ACCESS_KEY\"
+#echo security find-generic-password -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w 
 
 # This is needed in the ~/.aws/config directory
 # Escape the ][ lest you are using a regex. eek
