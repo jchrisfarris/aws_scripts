@@ -8,8 +8,6 @@
 # [my-account-name]
 # region = us-east-1
 
-# Here are some things we just want to add to the environment
-export PATH=$PATH:/pht/bin:/pht/aws_scripts/bin
 
 # Function to load the API keys from OSX Keychain.
 aws_account () {
@@ -57,11 +55,6 @@ aws_account () {
 	# Set the prompt so you know what you're doing
 	export COLOR="32m"
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
-
-
-	# Other setup
-	complete -C /pht/aws/bin/aws_completer aws
-	export PATH=$PATH:/pht/aws/bin
 
 	list.pl
 }
