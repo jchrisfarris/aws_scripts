@@ -64,6 +64,12 @@ while true ; do
 			DO_PASSWORD_POLICY=TRUE 
 			shift 
 		;;
+		--region) 
+			shift
+			REGIONS=$1
+			shift 
+			echo "Only Doing Region: $REGIONS"
+		;;
 		--status) 
 			DO_SHOW_STATUS=TRUE
 			shift 
@@ -86,7 +92,6 @@ if [ -z "$ACCOUNT_ID" ] ; then
 	usage
 	exit 1
 fi
-
 if [ "$POLICY_PATH" == "" ] ; then
 	POLICY_PATH="../policy_documents"
 fi
@@ -253,6 +258,11 @@ do_setup_configservice () {
 		# AWS will barf if you've got an existing recorder as you can have only one per region. Here I get the name of the existing recorder
 		# and reuse if if necessary. Otherwise, I go with Default-$region
 		NAME=`aws configservice describe-configuration-recorders --output=text --region=$region --query 'ConfigurationRecorders[*].{name:name}'` 
+		if [ $? -ne 0 ] ; then
+			# Error, skip this region
+			echo "Unable to get configservice in $region. Maybe its not supported?"
+			continue
+		fi
 		if [ "$NAME" == "" ] ; then
 			NAME="Default-$region"
 		fi

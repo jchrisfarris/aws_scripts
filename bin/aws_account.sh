@@ -42,6 +42,7 @@ aws_account () {
 	fi
 
 	KEYCHAIN_ENTRY="${AWSUSER}@${AWS_DEFAULT_PROFILE}"
+	echo $KEYCHAIN_ENTRY
 	# echo "security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_ACCESS_KEY_ID -w"
 	# echo "security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_SECRET_ACCESS_KEY -w"
 	export AWS_ACCESS_KEY_ID=$(security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_ACCESS_KEY_ID -w)
@@ -75,4 +76,4 @@ ch_region () {
 
 
 # Here are some aliases
-alias "li"="aws ec2 describe-instances --output=text --query 'Reservations[].Instances[].{InstanceId:InstanceId,Status:State.Name,Type:InstanceType,PublicIpAddress:PublicIpAddress}'"
+alias "li"="aws ec2 describe-instances --output=text --query 'Reservations[].Instances[].{InstanceId:InstanceId,Status:State.Name,Type:InstanceType,PublicIpAddress:PublicIpAddress,PrivateIpAddress:PrivateIpAddress}'"

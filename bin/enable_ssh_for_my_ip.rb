@@ -18,7 +18,9 @@ OptionParser.new do |opts|
   opts.on("-i", "--ip ip", "use this IP instead") do |ip|
     options[:ip] = ip
   end
-
+  opts.on("-p", "--port port", "use this port instead of 22") do |port|
+    options[:port] = port
+  end
   opts.on("-R", "--revoke-all", "Revoke All SSH Access") do |all|
     options[:revokeall] = all
   end
@@ -27,6 +29,13 @@ end.parse!
 
 # p options
 # p ARGV
+
+
+if options[:port]
+	port = options[:port]
+else
+	port = 22
+end
 
 if options[:ip] == nil
 	public_ipv4=`curl -s http://myexternalip.com/raw`
@@ -46,15 +55,15 @@ instance_name=ARGV[0]
 
 permission={ ip_permissions: [
 			{ 	ip_protocol: "tcp",
-				from_port: "22",
-				to_port: "22",
+				from_port: port,
+				to_port: port,
 				ip_ranges: [ { cidr_ip: "#{public_ipv4}/32" } ]
 			} ] }
 
 ec2=Aws::EC2::Client.new()
 
-result=ec2.describe_instances({filters: [ { name: "tag:Name", values: [ "#{instance_name}" ] } ] } )
-
+result=ec2.describe_instances({filters: [ { name: "tag:Name", values: [ "#{instance_name}" ] }, { name: "instance-state-name", values: ['running']} ] } )
+# puts result.reservations.inspect
 if result.reservations.length == 0
 	puts "Could not find #{instance_name}"
 	exit 1
@@ -65,9 +74,9 @@ sg_id = i.security_groups[0].group_id
 
 sg=Aws::EC2::SecurityGroup.new(sg_id)
 if options[:revokeall]
-	puts "Revoking all SSH Access to instance #{instance_name} (ID: #{i.instance_id})"
+	puts "Revoking all #{port} Access to instance #{instance_name} (ID: #{i.instance_id})"
 	sg.ip_permissions.each do |p|
-		if p.from_port == 22 && p.to_port == 22
+		if p.from_port == port && p.to_port == port
 			permission[:ip_permissions][0][:ip_ranges]=p.ip_ranges
 			p.ip_ranges.each do |r|
 				r.cidr_ip
@@ -79,11 +88,11 @@ if options[:revokeall]
 else
 	begin
 		if options[:revoke]
-			puts "Revoking SSH for Instance #{instance_name} (ID: #{i.instance_id}) by removing #{public_ipv4} from #{sg_id}"
+			puts "Revoking #{port} for Instance #{instance_name} (ID: #{i.instance_id}) by removing #{public_ipv4} from #{sg_id}"
 
 			r=sg.revoke_ingress(permission)
 		else
-			puts "Authorizing SSH for Instance #{instance_name} (ID: #{i.instance_id}) by adding #{public_ipv4} to #{sg_id}"
+			puts "Authorizing #{port} for Instance #{instance_name} (ID: #{i.instance_id}) by adding #{public_ipv4} to #{sg_id}"
 			r=sg.authorize_ingress(permission)
 		end
 		puts "Done" if r.successful?
