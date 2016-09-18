@@ -1,10 +1,7 @@
 #!/bin/bash -e
 #
-# Uploads your AWS Security API Keys to OSX KeyChain. Requires the CSV file you downloaded from the AWS Console. 
+# Prompt for AWS Credentials and stores them in your OSX keychain 
 # Use this with the aws_account script.
-
-CSV_FILE=$1
-ACCOUNT=$2
 
 # Abort if not on a Mac, because WTF
 if [ `uname` != "Darwin" ] ; then
@@ -12,23 +9,23 @@ if [ `uname` != "Darwin" ] ; then
 	exit 1
 fi
 
-if [ ! -f "$CSV_FILE" ] ; then
-	echo "Can't open the credentials file. Aborting"
-	echo "Usage: $0 credentials.csv account_profile_string"
-	exit 1
-fi
-if [ -z "$ACCOUNT" ] ; then
-	echo "You must specify an account string."
-	echo "Usage: $0 credentials.csv account_profile_string"
-	exit 1
+echo -n "Please enter the Account Identifier: "
+read ACCOUNT
+echo -n "Please enter the Access Key: "
+read AWS_ACCESS_KEY_ID
+echo -n "Please enter the Secret Key: "
+read AWS_SECRET_ACCESS_KEY
+echo -n "Please enter the user or hit enter for default ($USER): "
+read ans 
+if [ -z "$ans" ] ; then
+	AWSUSER=$USER
+else
+	AWSUSER=$ans
 fi
 
-AWSUSER=`tail -1 $CSV_FILE | awk -F, '{print $1}' | sed s/\"//g`
-AWS_ACCESS_KEY_ID=`tail -1  $CSV_FILE | awk -F, '{print $2}'`
-AWS_SECRET_ACCESS_KEY=`tail -1  $CSV_FILE | awk -F, '{print $3}'`
 
 if [ -z "$AWSUSER" ] || [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] ; then
-	echo "Unable to get all the right vars from your credentials file. Unable to proceed."
+	echo "Unable to get all the right credentials . Unable to proceed."
 	exit 1
 fi
 
@@ -36,8 +33,6 @@ KEYCHAIN_ENTRY="${AWSUSER}@${ACCOUNT}"
 security add-generic-password -c AWSK -D AWS_ACCESS_KEY_ID -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
 #echo $AWS_SECRET_ACCESS_KEY
 security add-generic-password -c AWSK -D AWS_SECRET_ACCESS_KEY -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w "${AWS_SECRET_ACCESS_KEY}"
-
-
 
 #echo security add-generic-password -c AWSK -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
 #echo security add-generic-password -c AWSK -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w $AWS_SECRET_ACCESS_KEY
@@ -52,9 +47,10 @@ security find-generic-password -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w | 
 
 # This is needed in the ~/.aws/config directory
 # Escape the ][ lest you are using a regex. eek
-grep "\[profile $2\]" ~/.aws/config > /dev/null 2>&1
-if [ $? != 0 ] ; then
+grep "\[profile $ACCOUNT\]" ~/.aws/config > /dev/null 2>&1
+if [ $? -ne 0 ] ; then
 	echo "Adding $ACCOUNT to ~/.aws/config - you can add customizations (like default output format) to that file"
-  echo "[$ACCOUNT]" >> ~/.aws/config
-  echo "" >> ~/.aws/config
+	echo "" >> ~/.aws/config
+	echo "[profile $ACCOUNT]" >> ~/.aws/config
+	echo "" >> ~/.aws/config
 fi
