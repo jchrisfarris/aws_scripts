@@ -1,0 +1,286 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "Deploy The Basic CloudTrail Resources required to monitor the account",
+	"Metadata": {
+
+	},
+	"Parameters": {
+		"pLoggingBucketName": {
+		    "Description": "Name of the Bucket to Create for CloudTrail Logs",
+		    "Type": "String"
+		},
+		"pOperatorEmail": {
+		    "Description": "Who gets the initial spam from cloudtrail before they unsubscribe",
+		    "Type": "String"
+		},
+		"pTagApplication": {
+			"Type": "String"
+		},
+		"pTagCreatedBy": {
+			"Type": "String"
+		},
+		"pCreateBucket": {
+			"Type": "String",
+			"Description": "Boolean to create bucket or use existing one"
+		}
+	},
+	"Mappings": {
+
+	},
+	"Conditions": {
+		"disabled": { "Fn::Equals": [ "true", "false"] },
+		"enabled": { "Fn::Equals": [ "true", "true"] },
+		"CreateBucket": { "Fn::Equals": [ {"Ref": "pCreateBucket"}, "true"] }
+	},
+	"Resources": {
+		"LoggingS3Bucket": {
+			"DeletionPolicy" : "Retain",
+			"Condition": "CreateBucket",
+			"Type": "AWS::S3::Bucket",
+			"Properties": {
+				"AccessControl": "Private",
+				"BucketName": {"Ref": "pLoggingBucketName"},
+    			"VersioningConfiguration": {"Status":"Enabled"},
+				"Tags": [
+					{ "Key": "Name", "Value": { "Ref": "pLoggingBucketName"} },
+					{ "Key": "creator", "Value": { "Ref": "pTagCreatedBy"} },
+					{ "Key": "application", "Value": { "Ref": "pTagApplication"}  }
+				]
+			}
+		},
+		"LoggingBucketPolicy" : {
+			"Type" : "AWS::S3::BucketPolicy",
+			"Properties" : {
+				"Bucket" : {"Ref" : "pLoggingBucketName"},
+				"PolicyDocument" : {
+					"Version": "2012-10-17",
+					"Statement": [
+						{
+							"Sid": "AWSCloudTrailAclCheck",
+							"Effect": "Allow",
+							"Principal": { "Service":"cloudtrail.amazonaws.com"},
+							"Action": "s3:GetBucketAcl",
+							"Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", {"Ref":"pLoggingBucketName"}]]}
+						},
+						{
+							"Sid": "AWSCloudTrailWrite",
+							"Effect": "Allow",
+							"Principal": { "Service": "cloudtrail.amazonaws.com"},
+							"Action": "s3:PutObject",
+							"Resource": { "Fn::Join" : ["", ["arn:aws:s3:::", {"Ref":"pLoggingBucketName"}, "/AWSLogs/", {"Ref":"AWS::AccountId"}, "/*"]]},
+							"Condition": {
+								"StringEquals": { "s3:x-amz-acl": "bucket-owner-full-control" }
+							}
+						}
+					]
+				}
+			}
+		},
+		"ConfigCloudTrailTopic": {
+			"Type": "AWS::SNS::Topic",
+			"Properties": {
+				"TopicName": "aws-admin-ConfigCloudTrailTopic",
+				"DisplayName": "Config and CloudTrail Notifications",
+				"Subscription": [ {
+					"Endpoint": { "Ref": "pOperatorEmail" },
+					"Protocol": "email" 
+				}]
+			}
+		},
+		"ConfigCloudTrailTopicPolicy" : {
+			"Type" : "AWS::SNS::TopicPolicy",
+			"Properties" : {
+				"Topics" : [{"Ref":"ConfigCloudTrailTopic"}],
+				"PolicyDocument" : {
+					"Version": "2008-10-17",
+					"Statement": [
+						{
+							"Sid": "AWSCloudTrailSNSPolicy",
+							"Effect": "Allow",
+							"Principal": { "Service":"cloudtrail.amazonaws.com"},
+							"Resource": "*",
+							"Action": "SNS:Publish"
+						}
+					]
+				}
+			}
+		},
+		"CloudTrail" : {
+			"DependsOn" : ["LoggingBucketPolicy", "ConfigCloudTrailTopicPolicy"],
+			"Type" : "AWS::CloudTrail::Trail",
+			"Condition": "enabled",
+			"Properties" : {
+				"S3BucketName" : {"Ref": "pLoggingBucketName"},
+				"SnsTopicName" : {"Fn::GetAtt":["ConfigCloudTrailTopic","TopicName"]},
+				"IsLogging" : true,
+				"EnableLogFileValidation": true,
+				"IncludeGlobalServiceEvents": true,
+				"IsMultiRegionTrail": true,
+				"Tags": [
+					{ "Key": "Name", "Value": { "Ref": "AWS::StackName"} },
+					{ "Key": "creator", "Value": { "Ref": "pTagCreatedBy"} },
+					{ "Key": "application", "Value": { "Ref": "pTagApplication"}  }
+				]
+			}
+		},
+
+		"ConfigRole": {
+			"Type": "AWS::IAM::Role",
+			"Condition": "enabled",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version" : "2012-10-17",
+					"Statement": [ {
+						"Effect": "Allow",
+						"Principal": { "Service": [ "config.amazonaws.com" ] },
+						"Action": [ "sts:AssumeRole" ]
+					} ]
+				},
+				"Path": "",
+				"Policies": [{
+					"PolicyName": "ConfigPolicy",
+					"PolicyDocument": {
+						"Version": "2012-10-17",
+						"Statement": [
+							{
+								"Action": [
+									"appstream:Get*",
+									"autoscaling:Describe*",
+									"cloudformation:DescribeStacks",
+									"cloudformation:DescribeStackEvents",
+									"cloudformation:DescribeStackResource",
+									"cloudformation:DescribeStackResources",
+									"cloudformation:GetTemplate",
+									"cloudformation:List*",
+									"cloudfront:Get*",
+									"cloudfront:List*",
+									"cloudtrail:DescribeTrails",
+									"cloudtrail:GetTrailStatus",
+									"cloudwatch:Describe*",
+									"cloudwatch:Get*",
+									"cloudwatch:List*",
+									"config:Put*",
+									"directconnect:Describe*",
+									"dynamodb:GetItem",
+									"dynamodb:BatchGetItem",
+									"dynamodb:Query",
+									"dynamodb:Scan",
+									"dynamodb:DescribeTable",
+									"dynamodb:ListTables",
+									"ec2:Describe*",
+									"elasticache:Describe*",
+									"elasticbeanstalk:Check*",
+									"elasticbeanstalk:Describe*",
+									"elasticbeanstalk:List*",
+									"elasticbeanstalk:RequestEnvironmentInfo",
+									"elasticbeanstalk:RetrieveEnvironmentInfo",
+									"elasticloadbalancing:Describe*",
+									"elastictranscoder:Read*",
+									"elastictranscoder:List*",
+									"iam:List*",
+									"iam:Get*",
+									"kinesis:Describe*",
+									"kinesis:Get*",
+									"kinesis:List*",
+									"opsworks:Describe*",
+									"opsworks:Get*",
+									"route53:Get*",
+									"route53:List*",
+									"redshift:Describe*",
+									"redshift:ViewQueriesInConsole",
+									"rds:Describe*",
+									"rds:ListTagsForResource",
+									"s3:Get*",
+									"s3:List*",
+									"sdb:GetAttributes",
+									"sdb:List*",
+									"sdb:Select*",
+									"ses:Get*",
+									"ses:List*",
+									"sns:Get*",
+									"sns:List*",
+									"sqs:GetQueueAttributes",
+									"sqs:ListQueues",
+									"sqs:ReceiveMessage",
+									"storagegateway:List*",
+									"storagegateway:Describe*",
+									"trustedadvisor:Describe*"
+								],
+								"Effect": "Allow",
+								"Resource": "*"
+							},
+							{
+								"Effect": "Allow",
+								"Action": [
+									"s3:PutObject*"
+								],
+								"Resource": [ {"Fn::Join": ["",["arn:aws:s3:::", {"Ref": "pLoggingBucketName"}, "/AWSLogs/*"]]} ],
+								"Condition": {
+									"StringLike": { "s3:x-amz-acl": "bucket-owner-full-control" }
+								}
+							},
+							{
+								"Effect": "Allow",
+								"Action": [
+									"s3:GetBucketAcl"
+								],
+								"Resource": {"Fn::Join": ["",["arn:aws:s3:::", {"Ref": "pLoggingBucketName"} ]]}
+							}
+						]
+					}
+				}]
+			}
+		},
+		"ConfigRecorder": {
+			"Type": "AWS::Config::ConfigurationRecorder",
+			"Condition": "enabled",
+			"Properties": {
+				"Name": "default",
+				"RecordingGroup": {
+					"AllSupported": true,
+					"IncludeGlobalResourceTypes": true
+				},
+				"RoleARN": {"Fn::GetAtt": ["ConfigRole", "Arn"]}
+			}
+		},
+		"ConfigDeliveryChannel": {
+			"Type": "AWS::Config::DeliveryChannel",
+			"Condition": "enabled",			
+			"Properties": {
+				"ConfigSnapshotDeliveryProperties": {
+					"DeliveryFrequency": "Six_Hours"
+				},
+				"S3BucketName": {"Ref": "pLoggingBucketName"},
+				"SnsTopicARN": {"Ref": "ConfigCloudTrailTopic"}
+			}
+		},
+		"ConfigRuleForRootMFA": {
+			"Type": "AWS::Config::ConfigRule",
+			"DependsOn": "ConfigRecorder",
+			"Properties": {
+				"Source": {
+					"Owner": "AWS",
+					"SourceIdentifier": "ROOT_ACCOUNT_MFA_ENABLED"
+				}
+			}
+		},
+		"ConfigRuleForCloudTrail": {
+			"Type": "AWS::Config::ConfigRule",
+			"DependsOn": "ConfigRecorder",			
+			"Properties": {
+				"Source": {
+					"Owner": "AWS",
+					"SourceIdentifier": "CLOUD_TRAIL_ENABLED"
+				}
+			}
+		}
+
+
+	},
+	"Outputs": {
+		"CloudTrailTopicArn": {
+			"Value": {"Ref": "ConfigCloudTrailTopic"}
+		}
+	}
+}
+    
