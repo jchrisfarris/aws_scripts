@@ -1,0 +1,126 @@
+# Sample Manifest to deploy a set of instances 
+# Instances will be created by an AutoScale Group
+# The Instance Launch Config will leverage chef to define the node
+#
+
+# Setup:
+# You need to create an S3 bucket (pChefConfigBucket) where the instances will look for their client.rb and pem files
+# The bucket prefix is "/chef/"
+# Under that bucket you need the pChefConfigBucket prefix.
+# inside s3://{pChefConfigBucket}/chef/{pChefOrganization} you want to place your client.rb and $organization-validator.pem
+# To reuse client.pem files (created once the node first registers to chef) create bucket prefix that is:
+# s3://{pChefConfigBucket}/chef/client.pem/{pChefOrganization}/
+# 
+
+
+StackName: GenericChef
+OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
+Region: us-east-1
+TimeOut: 15m
+# You must specifiy JsonTemplate or S3Template but not both.
+JsonTemplate: samples/GenericChefInstances.cform
+# S3Template: https://s3.amazonaws.com/cloudformation-templates-us-east-1/WordPress_Chef.template
+
+###########
+# Parameters that are defined by you.
+###########
+Parameters:
+  # Instance Paramaters - Part of the Launch Config
+  pInstanceType: t2.micro
+  pVpcId: vpc-78xxxxxx
+  pInstanceAMI: ami-527xxxxx
+  pKeyName: cfarris
+  pInstanceName: testinstance
+  pAllowSshFromCidr: 4.4.0.0/17
+
+  # Chef Variables. Passed to the scripts that run chef
+  pInstanceChefRole: "role[mychefrole]"
+  pInstanceChefEnvironment: "_default"
+  pChefConfigBucket: my-deploy-artifacts
+  pChefOrganization: FIXME
+
+  # AutoScage Group Params
+  pSubnetIdA: subnet-8bxxxxxx
+  pSubnetIdB: subnet-ayyyyyyy
+  pInstanceCountMin: 1
+  pInstanceCountMax: 2
+
+  # Details on the ELB
+  pLoadBalancerBool: false        # "true" or "false"
+  pLoadBalancerPublicPort: 80
+  pLoadBalancerInsidePort: 3001
+  pLoadBalancerProtocol: HTTP     # Can be one of HTTP, HTTPS, TCP, or SSL
+  pServiceFQDN: test.mydomain.net.
+  pHostedZoneId: Z2KZRXXXXXXX
+
+  # Tags that are Passed to various resources
+  pTagCostCenter: 12345678
+  pTagCreatedBy: ChrisFarris
+  pTagEnvironment: dev
+  pTagProject: cfnDeploy
+
+###########
+# Tags that apply to the stack. Will be inherited by some resources. 
+###########
+Tags:
+  Name: GenericChef
+  Createdby: Chris Farris
+  Costcenter: 123456
+  Project: cfnDeploy
+  Environment: Dev
+
+###########
+# These stacks are needed by the SourcedParameters section
+###########
+DependsOnStacks: 
+# This stack does not depend on other stacks. If you're deploying from Cloudformation built VPC you can get things like
+# VPCId or the Subnet IDs. 
+    # - myVPCStack
+
+###########
+# Parameters that come from other deployed stacks.
+# Valid Sections are Resources, Outputs Parameters
+###########
+SourcedParameters:
+  # This stack does not depend on resources deployed in other stacks. 
+  # pVpcId: myVPCStack.Resources.VPCId
+  # pSubnetIdA: myVPCStack.Resources.FirstPublicSubnetID
+  # pSubnetIdB: myVPCStack.Resources.SecondPublicSubnetID
+
+
+###########
+# Stack Policies protect resources from accidential deletion or replacement
+# for the definition of stack policies see:
+# see http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html#stack-policy-reference
+###########
+StackPolicy:
+# For this stack, we want to prevent deletion or accidental replacement of the VPC or any of the Route 53 HostedZones
+# All resources should be modifiable. 
+  # - Resource: 
+  #   - "LogicalResourceId/InstanceELB*"
+  #   Effect: Deny
+  #   Principal: "*" 
+  #   Action: 
+  #   - "Update:Delete"
+  #   - "Update:Replace"
+  - Resource: "*"
+    Effect: Allow
+    Principal: "*" 
+    Action: 
+      - "Update:Modify"
+      - "Update:Delete"
+      - "Update:Replace"
+
+# Not everything lives in Cloudformation. This script will execute when the stack is 
+# either update_complete or create_complete
+# Any string inside {{ }} that matches an stack output will have the value of that
+# outpust substituted in.
+PostInstallScript: |
+  #!/bin/bash -x
+  echo "Executing Post Install Script for  {{StackName}}"
+
+
+PostUpdateScript: |
+  #!/bin/bash -x
+  echo "Executing Post Update Script"
+

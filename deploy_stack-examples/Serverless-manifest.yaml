@@ -1,0 +1,158 @@
+# Sample Manifest to deploy a serverless stack (API Gateway + Lambda + DynamoDB)
+#
+
+# Setup:
+# This assumes that index.js is located in the directory with the cform file and the manifest
+# To get the API Gateway swagger file, create your gateway via the AWS Console
+# Then export it via the "Export as Swagger & API Gateway Extensions" (I like YAML if you couldn't tell)
+# You do not have to clean up the YAML host line, but your uri mush match the lambda name
+
+
+StackName: MyServerlessLambda
+OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
+Region: us-east-1
+TimeOut: 15m
+# You must specifiy JsonTemplate or S3Template but not both.
+JsonTemplate: Serverless.cform
+# S3Template: https://s3.amazonaws.com/cloudformation-templates-us-east-1/WordPress_Chef.template
+
+###########
+# Parameters that are defined by you.
+###########
+Parameters:
+
+  # Folder with artifacts
+  pArtifactBucket: my-deploy-artifacts
+  pArtifactPrefix: MyServerlessLambda
+
+  # DynamoDB Table Name
+  pTableName: fnord-table
+  pStartingNumber: 100000
+
+  # Both pLambdaVersion and pSwaggerVersion are simple strings used to seperate versions of the lambda zip and swagger yaml
+  # between iterations. They can be in whatever format you want. 
+
+  # Where to get the Lambda
+  pLambdaVersion: lambda1.5
+  pLambdaZipFile: lambda.zip
+  # Path of the lambda is s3://{{pArtifactBucket}}/{{pArtifactPrefix}}/{{pLambdaVersion}}/{{pLambdaZipFile}}
+
+  # How to get the Swagger info
+  pSwaggerVersion: 1.4
+  pSwaggerFile: fnord-swagger-integrations,authorizers.yaml
+  pAPIGatewayDescription: "My Serverless API"
+  pAPIGatewayName: "serverless-api"
+  pAPIGatewayStageName: dev
+  # Path of the swagger is s3://{{pArtifactBucket}}/{{pArtifactPrefix}}/{{pSwaggerVersion}}/{{pSwaggerFile}}
+
+  # Not used yet.
+  # pHostedZoneId: ZJXXXXXX06Q
+  # pServiceFQDN: myservice.dev.room17.com
+
+
+
+###########
+# Tags that apply to the stack. Will be inherited by some resources. 
+###########
+Tags:
+  Name: MyServerlessLambda
+  Createdby: chris@room17.com
+  Project: Testing
+  Environment: Dev
+
+###########
+# These stacks are needed by the SourcedParameters section
+###########
+DependsOnStacks: 
+# This stack does not depend on other stacks. 
+
+###########
+# Parameters that come from other deployed stacks.
+# Valid Sections are Resources, Outputs Parameters
+###########
+SourcedParameters:
+  # This stack does not depend on resources deployed in other stacks. 
+
+
+
+###########
+# Stack Policies protect resources from accidential deletion or replacement
+# for the definition of stack policies see:
+# see http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html#stack-policy-reference
+###########
+StackPolicy:
+  # For this stack, we want to prevent deletion or accidental replacement of the DynamoDB Table
+  - Resource: 
+    - "LogicalResourceId/DynamoDBTable"
+    Effect: Deny
+    Principal: "*" 
+    Action: 
+    - "Update:Delete"
+    - "Update:Replace"
+  # All other resources should be modifiable. 
+  - Resource: "*"
+    Effect: Allow
+    Principal: "*" 
+    Action: 
+      - "Update:Modify"
+      - "Update:Delete"
+      - "Update:Replace"
+
+# # Not everything lives in Cloudformation. This script will execute when the stack is 
+# # either update_complete or create_complete
+# # Any string inside {{ }} that matches an stack output will have the value of that
+# # outpust substituted in.
+
+# For troubleshooting, call it with "#!/bin/bash -x"
+PostInstallScript: |
+  #!/bin/bash 
+  echo "Executing Post Install Script for  {{StackName}}"
+
+  # Do a trivial update to populate the table
+  aws dynamodb put-item --table-name {{TableName}} --item '{ "dataKey": {"S": "uniqueInteger"}, "nextValue": {"N": "{{StartingNumber}}" } }'
+
+  echo ; echo
+  echo "Set first integer to {{StartingNumber}}"
+  echo "Hit {{ApiURL}}"
+  echo "x-api-key is {{APIKey}}"
+
+
+PostUpdateScript: |
+  #!/bin/bash 
+  echo "Executing Post Update Script"
+  echo ; echo
+  echo "Hit {{ApiURL}}"
+  echo "x-api-key is {{APIKey}}"
+
+# Preinstall script will build the zip upload the Lambda code & swagger file to the S3 bucket
+# Again, this assumes everything is in the local directory
+PreInstallScript: |
+  #!/bin/bash -x
+
+  object="s3://{{pArtifactBucket}}/{{pArtifactPrefix}}/{{pLambdaVersion}}/{{pLambdaZipFile}}"
+  zip="{{pLambdaZipFile}}"
+
+  swagger_object="s3://{{pArtifactBucket}}/{{pArtifactPrefix}}/{{pSwaggerVersion}}/{{pSwaggerFile}}"
+  swagger_yaml="{{pSwaggerFile}}"
+
+  aws s3 ls $object 
+  if [ $? -ne 0 ] ; then
+    echo "Pushing new Lambda to S3 bucket $object"
+    mkdir $$
+    # If you lambda is more than just index.js, cp it here too
+    cp index.js $$
+
+    cd $$
+    zip ../$zip *
+    cd ..
+    rm $$/*
+    rmdir $$
+
+    aws s3 cp $zip $object
+  fi
+
+  aws s3 ls $swagger_object
+  if [ $? -ne 0 ] ; then
+    echo "Pushing new swagger to S3 bucket $swagger_object"
+    aws s3 cp $swagger_yaml $swagger_object
+  fi

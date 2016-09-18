@@ -1,0 +1,437 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Generic Template to deploy EC2 Instances via chef",
+    "Metadata": {
+    	"comments": "You can go a global search and replace of Instance with the type of Instance you want to create for a more personalized template"
+
+    },
+    "Parameters": {
+    	"pVpcId": {
+    	    "Description": "ID of the VPC",
+    	    "Type": "AWS::EC2::VPC::Id",
+    	    "Default": "-"
+    	},
+    	"pInstanceType": {
+    	    "Description": "Size of the Instance",
+    	    "Type": "String",
+    	    "AllowedValues": ["t2.micro", "t2.small", "t2.medium"],
+    	    "Default": "t2.micro"
+    	},
+    	"pInstanceAMI": {
+    	    "Description": "Base AMI for the instances",
+    	    "Type": "AWS::EC2::Image::Id",
+    	    "Default": "-"
+    	},
+		"pKeyName": {
+		    "Description": "KeyName for instances",
+		    "Type": "AWS::EC2::KeyPair::KeyName",
+		    "Default": "-"
+		},
+		"pHostedZoneId": {
+		    "Description": "Hosted Zone ID to register the public ELB",
+		    "Type": "AWS::Route53::HostedZone::Id",
+		    "Default": "-"
+		},
+		"pSubnetIdA": {
+		    "Description": "Subnet A for Bastion",
+		    "Type": "AWS::EC2::Subnet::Id",
+		    "Default": "-"
+		},
+		"pSubnetIdB": {
+		    "Description": "Subnet B for Bastion",
+		    "Type": "AWS::EC2::Subnet::Id",
+		    "Default": "-"
+		},
+		"pAllowSshFromCidr": {
+			"Description": "Allow ssh from these IP Addresses",
+			"Type": "String"
+		},
+		"pLoadBalancerBool": {
+			"Description": "Wether or not to create an ELB as part of the deploy",
+			"Type": "String",
+			"Default": "No"
+		},
+		"pLoadBalancerPublicPort": {
+			"Description": "Public ELB Port",
+			"Type": "Number",
+			"Default": "0"
+		},
+		"pLoadBalancerInsidePort": {
+			"Description": "Inside ELB Port",
+			"Type": "Number",
+			"Default": "0"
+		},
+		"pLoadBalancerProtocol": {
+			"Description": "Protocol ELB should use",
+			"Type": "String",
+			"Default": "HTTP",
+			"AllowedValues": [ "HTTP", "HTTPS", "TCP", "SSL"]
+		},
+		"pInstanceChefRole": { 
+			"Description": "Chef run list to pass to chef-client -r",
+			"Type": "String"
+		},
+		"pChefConfigBucket": {
+			"Description": "Bucket where you can find the client.rb and validator or client pem",
+			"Type": "String"
+		},		
+		"pChefOrganization": {
+			"Description": "Name of the chef organization. Which is the prefix of the chef bucket",
+			"Type": "String"
+		},
+		"pInstanceChefEnvironment": { 
+			"Type": "String",
+			"Default": "_default",
+			"Description": "Chef Environment passed to chef-client -E"
+		},		
+		"pInstanceName": {
+			"Description": "Name the instances will have as part of Name tag",
+		    "Type": "String",
+		    "Default": "-"
+		},
+		"pInstanceCountMin": {
+			"Description": "Minimum Number of instances to spawn",
+		    "Type": "Number",
+		    "Default": "1"
+		},
+		"pInstanceCountMax": {
+			"Description": "Maximium Number of instances to spawn",
+		    "Type": "Number",
+		    "Default": "1"
+		},
+	    "pServiceFQDN": {
+	       "Description": "FQDN of the instance Host. domain name must match the Hosted Zone ID",
+	       "Type": "String",
+	       "Default": ""
+	    },		
+	    "pTagCreatedBy": {
+	       "Description": "User who created the instances",
+	       "Type": "String",
+	       "Default": ""
+	    },
+	    "pTagCostCenter": {
+	       "Description": "Cost Center for these instances",
+	       "Type": "String",
+	       "Default": ""
+	    },
+	    "pTagProject": {
+	       "Description": "project these instances are part of",
+	       "Type": "String",
+	       "Default": ""
+	    },
+	    "pTagEnvironment": {
+	       "Description": "Environment (dev, ref,prod)",
+	       "Type": "String",
+	       "Default": ""
+	    }
+    
+    },
+    "Mappings": {
+
+    },
+    "Conditions": {
+		"disabled": { "Fn::Equals": [ "true", "false "] },
+		"cCreateELB": { "Fn::Equals": [ { "Ref": "pLoadBalancerBool" }, "Yes" ]}
+    },
+    "Resources": {
+    	"InstanceAutoScaleGroup" : {
+    	    "Type" : "AWS::AutoScaling::AutoScalingGroup",
+    	    "Properties" : {
+    	        "VPCZoneIdentifier": [ {"Ref": "pSubnetIdA" }, {"Ref": "pSubnetIdB" } ],
+    	        "LaunchConfigurationName" : {"Ref": "InstanceLaunchConfiguration"},
+    	        "MaxSize" : { "Ref": "pInstanceCountMax"},
+    	        "MinSize" : { "Ref": "pInstanceCountMin"},
+				"Tags": [
+					{ "Key": "Name", "Value": { "Ref": "pInstanceName"}, "PropagateAtLaunch": "true" },
+					{ "Key": "Createdby", "Value": { "Ref": "pTagCreatedBy"}, "PropagateAtLaunch": "true" },
+					{ "Key": "Costcenter", "Value": { "Ref": "pTagCostCenter"}, "PropagateAtLaunch": "true"  },
+					{ "Key": "Project", "Value": { "Ref": "pTagProject"}, "PropagateAtLaunch": "true"  },
+					{ "Key": "Environment", "Value": { "Ref": "pTagEnvironment"}, "PropagateAtLaunch": "true" }
+				]
+			},
+
+
+			"CreationPolicy": {
+				"ResourceSignal": {
+					"Count": { "Ref": "pInstanceCountMin"},
+					"Timeout": "PT15M"
+				}
+			},
+			"UpdatePolicy" : {
+				"AutoScalingScheduledAction" : {
+					"IgnoreUnmodifiedGroupSizeProperties" : "true"
+				},
+				"AutoScalingRollingUpdate" : {
+					"MinInstancesInService" : { "Ref": "pInstanceCountMin"},
+					"MaxBatchSize" : { "Ref": "pInstanceCountMax"},
+					"MinSuccessfulInstancesPercent": "0",
+					"PauseTime" : "PT15M",
+					"WaitOnResourceSignals" : "true"
+				}
+			}
+
+
+
+    	},
+    	"InstanceLaunchConfiguration": {
+    	    "Type" : "AWS::AutoScaling::LaunchConfiguration",
+			"Metadata" : {
+				"AWS::CloudFormation::Authentication": {
+				  "S3Access" : {
+				    "type" : "S3",
+				    "bucketsls":["cfn.pht.us"],
+				    "roleName": "vpsRole"
+				  }
+				},
+				"AWS::CloudFormation::Init" : {
+				  "configSets" : {
+				    "chef_install" : [ "set_hostname", "install_cfn_hup", "run_chef"]
+				  },
+				  "set_hostname": {
+				  	"commands": {
+				  		"01_hostname": {
+				  			"command": { "Fn::Join": [ "", [ "hostname ", {"Ref": "pInstanceName"} ] ] }
+				  		}
+				  	},
+				  	"ignoreErrors": "false"
+			  	  },
+				  "install_cfn_hup" : {
+				    "files": {
+				      "/etc/cfn/cfn-hup.conf": {
+				        "content": { "Fn::Join": [ "", [
+				          "[main]\n",
+				          "stack=", { "Ref": "AWS::StackId" }, "\n",
+				          "region=", { "Ref": "AWS::Region" }, "\n"
+				        ]]},
+				        "mode"  : "000400",
+				        "owner" : "root",
+				        "group" : "root"
+				      },
+				      "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+				        "content": { "Fn::Join": [ "", [
+				          "[cfn-auto-reloader-hook]\n",
+				          "triggers=post.update\n",
+				          "path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init\n",
+				          "action=/opt/aws/bin/cfn-init -v ",
+				                  "         --stack ", { "Ref" : "AWS::StackName" },
+				                  "         --resource InstanceLaunchConfiguration ",
+				                  "         --configsets chef_install ",
+				                  "         --region ", { "Ref" : "AWS::Region" }, "\n"
+				        ]]},          
+				        "mode"  : "000400",
+				        "owner" : "root",
+				        "group" : "root"
+				      }
+				    },
+				    "services" : {
+				      "sysvinit" : {
+				        "cfn-hup" : { "enabled" : "true", "ensureRunning" : "true",
+				                      "files" : ["/etc/cfn/cfn-hup.conf", "/etc/cfn/hooks.d/cfn-auto-reloader.conf"] }
+				      }
+				    }
+				  },
+
+				  "run_chef" : {
+				    "commands" : {
+				      "01_get_client_pem": {
+						"command": { "Fn::Join": [ "", [ "/usr/local/bin/get_my_chef_client_pem.sh ", { "Ref": "pChefConfigBucket"}, 
+							" ", { "Ref": "pChefOrganization" }, " ", { "Ref": "pInstanceName" } ]]
+						},
+				        "cwd" : "/root",
+				        "env" : { "HOME" : "/root" },
+				        "ignoreErrors": "false"
+				      },
+				      "02_run_chef_client" : {
+				        "command" : { "Fn::Join": [ "", [ "chef-client -r '", { "Ref": "pInstanceChefRole"}, "'",
+				        	" -E ", { "Ref": "pInstanceChefEnvironment" }
+				        ]] },
+				        "cwd" : "/root",
+				        "env" : { "HOME" : "/root" },
+				        "ignoreErrors": "false"
+				      },
+				      "03_save_client_pem": {
+						"command": { "Fn::Join": [ "", [ "/usr/local/bin/save_my_chef_client_pem.sh ", { "Ref": "pChefConfigBucket"}, 
+							" ", { "Ref": "pChefOrganization" }, " ", { "Ref": "pInstanceName" } ]]
+						},
+				        "cwd" : "/root",
+				        "env" : { "HOME" : "/root" },
+				        "ignoreErrors": "false"
+				      }				      
+				    }
+				  }
+				}
+			},
+    	    "Properties" : {
+    	    	"AssociatePublicIpAddress": "true",
+    	        "IamInstanceProfile" : { "Ref": "InstanceIamInstanceProfile"},
+    	        "ImageId" : { "Ref": "pInstanceAMI" },
+    	        "InstanceMonitoring" : "true",
+    	        "InstanceType": { "Ref": "pInstanceType" },
+    	        "KeyName": { "Ref": "pKeyName" },
+    	        "SecurityGroups" : [ {"Ref": "InstanceSecurityGroup"}],
+				"UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+					"#!/bin/bash -x\n",
+					"/opt/aws/bin/cfn-init -v ",
+					"         --stack ", { "Ref" : "AWS::StackName" },
+					"         --resource InstanceLaunchConfiguration ",
+					"         --configsets chef_install ",
+					"         --region ", { "Ref" : "AWS::Region" }, "\n", 
+					"/opt/aws/bin/cfn-signal -e $? ",
+					"         --stack ", { "Ref" : "AWS::StackName" },
+					"         --resource InstanceAutoScaleGroup ",
+					"         --region ", { "Ref" : "AWS::Region" }, "\n"
+				]]}}
+    	    }
+    	},
+    	"InstanceSecurityGroup" : {
+    	  "Type" : "AWS::EC2::SecurityGroup",
+    	  "Properties" : {
+    	    "GroupDescription" : "Allow external Addresses to SSH to Instance Host",
+    	    "SecurityGroupIngress" : [ 
+				{
+				"IpProtocol" : "tcp",
+				"FromPort" : "22",
+				"ToPort" : "22",
+				"CidrIp" : {"Ref": "pAllowSshFromCidr"}
+				},
+				{
+				"IpProtocol" : "tcp",
+				"FromPort" : "22",
+				"ToPort" : "22",
+				"CidrIp" : "172.30.0.0/16"
+				}
+    	    ],
+    	    "VpcId" : { "Ref": "pVpcId" },
+			"Tags": [
+				{ "Key": "Name", "Value": "InstanceSecurityGroup" },
+				{ "Key": "creator", "Value": { "Ref": "pTagCreatedBy" } },
+				{ "Key": "Costcenter", "Value": { "Ref": "pTagCostCenter" } },
+				{ "Key": "Project", "Value": { "Ref": "pTagProject"} },
+				{ "Key": "environment", "Value": { "Ref": "pTagEnvironment" } }
+			]
+		  }
+    	},
+    	"InstanceIamInstanceProfile": {
+    	   "Type": "AWS::IAM::InstanceProfile",
+    	   "Properties": {
+    	      "Path": "/",
+    	      "Roles": [ {"Ref": "InstanceIamInstanceRole"} ]
+    	   }
+    	},
+
+	    "InstanceIamInstanceRole": {
+	       "Type": "AWS::IAM::Role",
+	       "Properties": {
+	          "AssumeRolePolicyDocument": {
+	             "Version" : "2012-10-17",
+	             "Statement": [ {
+	                "Effect": "Allow",
+	                "Principal": {
+	                   "Service": [ "ec2.amazonaws.com" ]
+	                },
+	                "Action": [ "sts:AssumeRole" ]
+	             } ]
+	          },
+	          "Path": "/",
+	          "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess" ],
+				"Policies": [  
+					{
+						"PolicyName": "AllowUpdateToRoute53",
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Sid": "AllowUpdateToRoute53",
+									"Effect": "Allow",
+									"Action": [
+										"route53:ChangeResourceRecordSets",
+										"route53:Get*",
+										"route53:List*"
+									],
+									"Resource": [ "*" ]
+								}
+							]
+						}
+					},
+					{
+						"PolicyName": "AllowAccessToClientPem",
+						"PolicyDocument": {
+							"Version": "2012-10-17",
+							"Statement": [
+								{
+									"Sid": "AllowAccessToClientPem",
+									"Effect": "Allow",
+									"Action": [
+										"s3:GetObject",
+										"s3:PutObject"
+									],
+									"Resource": [ 
+										{"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "pChefConfigBucket"},  "/chef/client.pem/", 
+												{"Ref": "pChefOrganization"}, "/", {"Ref": "pInstanceName" } ]]},
+										{"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "pChefConfigBucket"},  "/chef/", {"Ref": "pChefOrganization"}, "/*" ]]}
+									]
+								},
+								{
+									"Sid": "AllowBucketList",
+									"Effect": "Allow",
+									"Action": [
+										"s3:ListBucket"
+									],
+									"Resource": [ 
+										{"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "pChefConfigBucket"} ]]}
+									]
+								}
+							]
+						}
+					}
+				]
+	    	}
+	    },
+
+	    "InstanceELB": {
+			"Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+			"Condition": "cCreateELB",
+			"Properties": {
+				"Listeners" : [ {
+					"LoadBalancerPort" : {"Ref": "pLoadBalancerPublicPort" },
+					"InstancePort" : {"Ref": "pLoadBalancerInsidePort" },
+					"Protocol" : {"Ref": "pLoadBalancerProtocol" }
+				} ],
+				"CrossZone": "true",
+				"SecurityGroups" : [ {"Ref": "InstanceSecurityGroup"} ],
+				"Subnets" : [ {"Ref": "pSubnetIdA" }, {"Ref": "pSubnetIdB" } ],
+				"Tags": [
+					{ "Key": "Name", "Value": { "Fn::Join": ["", ["ELB for ", {"Ref": "AWS::StackName"}]]} },
+					{ "Key": "creator", "Value": { "Ref": "pTagCreatedBy" } },
+					{ "Key": "Costcenter", "Value": { "Ref": "pTagCostCenter" } },
+					{ "Key": "Project", "Value": { "Ref": "pTagProject"} },
+					{ "Key": "environment", "Value": { "Ref": "pTagEnvironment" } }
+		        ]
+		    }
+	    },
+
+	    "InstanceELBRoute53Record": {
+	    	"Type": "AWS::Route53::RecordSet",
+	    	"Condition": "cCreateELB",
+	    	"Properties": {
+	    		"Name": { "Ref": "pServiceFQDN"},
+	    		"Type": "A",
+	    		"AliasTarget": {
+					"DNSName" : { "Fn::GetAtt": [ "InstanceELB", "DNSName" ] },
+					"EvaluateTargetHealth" : "false",
+					"HostedZoneId" : { "Fn::GetAtt": [ "InstanceELB", "CanonicalHostedZoneNameID" ] }
+	    			},
+	    		"Comment": "Alias to Basion ELB",
+	    		"HostedZoneId": { "Ref": "pHostedZoneId"}
+			}
+	    }
+
+    },
+    "Outputs": {
+		"ELBName" : {
+			"Condition": "cCreateELB",
+			"Value" : { "Fn::GetAtt": [ "InstanceELB", "DNSName" ] }
+		}
+    }
+}
+    

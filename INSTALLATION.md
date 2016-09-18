@@ -26,11 +26,10 @@ export PATH=$PATH:~/aws/aws_scripts/bin:~/aws/cfnDeployStack
 EOF
 echo ". ~/.aws_profile" >> ~/.profile
 ```
-*cfnDeployStack makes it easy to deploy stacks with lots of paramaters*
+
+*deploy_stack.rb makes it easy to deploy stacks with lots of paramaters*
 ```
-git clone https://github.com/jchrisfarris/cfnDeployStack.git
-sudo gem install aws-sdk
-sudo gem install colorize
+sudo gem install aws-sdk colorize
 ```
 
 
