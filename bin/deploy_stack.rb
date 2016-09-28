@@ -117,12 +117,12 @@ def get_manifest()
 	end
 	DebugLog.write("Manifest: " + manifest.inspect + "\n\n\n") if Options[:debug]
 
-	if ! manifest['JsonTemplate'] && ! manifest['S3Template']
-		puts "Your manifest must contain either JsonTemplate or S3Template. I cannot proceed"
+	if ! ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && ! manifest['S3Template'] 
+		puts "Your manifest must contain either LocalTemplate, JsonTemplate or S3Template. I cannot proceed"
 		exit 1
 	end
-	if manifest['JsonTemplate'] && manifest['S3Template']
-		puts "Cannot specify both JsonTemplate and S3Template in the manifest file. I cannot proceed."
+	if ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && manifest['S3Template']
+		puts "Cannot specify both LocalTemplate, JsonTemplate and S3Template in the manifest file. I cannot proceed."
 		exit 1
 	end
 	return(manifest)
@@ -133,6 +133,9 @@ def get_template(manifest, cf_client)
 	# Validate the template and get back the hash of parameters we need to populate
 	if manifest['JsonTemplate']
 		template_body = File.read(manifest['JsonTemplate'])
+		DebugLog.write ("Template Body: #{template_body}") if Options[:debug]
+	elsif manifest['LocalTemplate']
+		template_body = File.read(manifest['LocalTemplate'])
 		DebugLog.write ("Template Body: #{template_body}") if Options[:debug]
 	else
 		template_body = nil
@@ -249,7 +252,7 @@ def create_changeset(changeset_name)
 		}
 		if manifest['S3Template']
 			command['template_url'] = manifest['S3Template']
-		elsif manifest['JsonTemplate']
+		elsif ( manifest['JsonTemplate'] || manifest['LocalTemplate'] )
 			command['template_body'] = template_body
 		else
 			puts "ERROR: Idon't have a template. Aborting.".red
@@ -554,10 +557,10 @@ def update_create_stack(manifest, parameters, template_body, action, cf_client)
 	}
 	if manifest['S3Template']
 		command['template_url'] = manifest['S3Template']
-	elsif manifest['JsonTemplate']
+	elsif ( manifest['JsonTemplate'] || manifest['LocalTemplate'] )
 		command['template_body'] = template_body
 	else
-		puts "ERROR: Idon't have a template. Aborting.".red
+		puts "ERROR: I don't have a template. Aborting.".red
 		exit 1
 	end
 	if manifest['NotificationARN']
@@ -722,7 +725,7 @@ def print_stack_cost(manifest, cf_client, template_body, deploy_params)
 	}
 	if manifest['S3Template']
 		command['template_url'] = manifest['S3Template']
-	elsif manifest['JsonTemplate']
+	elsif ( manifest['JsonTemplate'] || manifest['LocalTemplate'] )
 		command['template_body'] = template_body
 	else
 		puts "ERROR: Idon't have a template. Aborting.".red
@@ -862,8 +865,8 @@ StackName: CHANGEME
 OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
 Region: us-east-1
 TimeOut: 15m
-# You must specifiy JsonTemplate or S3Template but not both.
-JsonTemplate: #{template_file}
+# You must specifiy LocalTemplate or S3Template but not both.
+LocalTemplate: #{template_file}
 # S3Template: https://s3.amazonaws.com/cloudformation-templates-us-east-1/WordPress_Chef.template
 
 # Paramaters:
