@@ -15,7 +15,7 @@ require 'fileutils'
 
 $input_file = ARGV[1]
 
-if ! File.exists?($input_file)
+if ! File.exists?($input_file) && $input_file != "-"
   puts "unable to find or open #{$input_file}"
   exit 1
 end
@@ -28,7 +28,11 @@ end.parse!
 
 case
   when options.yaml == true
-    puts(YAML.dump(JSON.parse(IO.read($input_file))))
+  	if $input_file == "-"
+  		puts(YAML.dump(JSON.parse(STDIN.read)))
+  	else
+	    puts(YAML.dump(JSON.parse(IO.read($input_file))))
+	end
   when options.json == true
     j_file = YAML.load_file(File.open("#{$input_file}", 'r'))
     puts JSON.pretty_generate(j_file)
