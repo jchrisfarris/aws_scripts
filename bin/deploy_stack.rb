@@ -670,6 +670,11 @@ def wait_for_stack_to_complete(stack_name, region, cf_client)
 		# color_stack_status=get_colorized_stack_status(status)
 		# puts "Done Waiting: #{color_stack_status}"
 		return status
+	rescue Seahorse::Client::NetworkingError => e
+		puts "Sorry, network error while waiting for stack completion. Error: #{e.message}"
+		puts "You can wait for the stack to finish and manually execute the post install or post update script"
+		puts "Have a nice day....."
+		exit 1
 	rescue Aws::CloudFormation::Errors::ServiceError => e
 		puts "ERROR: Unable to get status or resources of #{stack_name}: #{e.message}".red
 	end
