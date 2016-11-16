@@ -48,8 +48,8 @@ There are no special dependencies on the cloudformation template itself. deploy_
 
 
 ## Future Work
-- Support YAML templates
-- Support json/js comments "//", and strip those out before sending to AWS (which does not support comments)
+- ~~Support YAML templates~~ Done
+- ~~Support json/js comments "//", and strip those out before sending to AWS (which does not support comments)~~ AWS Supports YAML Now
 - Feed outputs of a pre-install script into template parameters
 - More robust leveraging of the Cloudformation ChangeSets. 
 - Better Docs on how to leverage ChangeSets

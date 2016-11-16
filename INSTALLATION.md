@@ -37,7 +37,9 @@ Adding Credentials
 ============================
 
 To add credentials to your account run
-aws_add_account.sh
+```
+add_aws_cred.sh
+```
 You'll be prompted for the account name, your keys and the username to use (hit enter to use your mac username)
 
 Updating Credentials

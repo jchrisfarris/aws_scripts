@@ -22,6 +22,10 @@ Other Scripts
 
 Admin Scripts
 * **new_account_config.sh** - Does things to a brand new account for security & billing purposes. 
+* **add_user.rb** - Creates new user, creates a temp password, creates a LoginProfile, adds them to an existing group, displays a message you can cut-n-paste in email
+* **download_api_key.rb** - Creates & Downloads an API key for a service account (ie doesn't have a Login Profile). Also allows for deletion of existing keys.
+* **cleanup_trails.sh** - Removes all traces of cloudtrail. Use with caution, this is mostly for cleaning up hand-made cloudtrails before re-buidling using Cloudformation
+
 
 
 Instance Scripts
