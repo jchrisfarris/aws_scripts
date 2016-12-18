@@ -29,6 +29,10 @@ OptionParser.new do |opts|
 	opts.on("-h", "human readable") do |h|
 		Options[:human] = h
 	end
+
+	opts.on("-t", "Show Totals only") do |t|
+		Options[:total] = t
+	end
 	
 	opts.on("--bucket bucket", "report on specific bucket") do |bucket|
 		Options[:bucket] = bucket
@@ -95,9 +99,9 @@ def get_bucket_storage_size(bucket_name)
 			if resp.datapoints.length != 0 
 				if Options[:human]
 					size = resp.datapoints[0].maximum.to_i.to_filesize
-					puts "#{size.to_s.ljust(12, " ")} #{bucket_name} (#{type})"
+					puts "#{size.to_s.ljust(12, " ")} #{bucket_name} (#{type})" if ! Options[:total]
 				else
-					puts "#{resp.datapoints[0].maximum.to_i}\t\t #{bucket_name} (#{type})"
+					puts "#{resp.datapoints[0].maximum.to_i}\t\t #{bucket_name} (#{type})" if ! Options[:total]
 				end
 				total_size = total_size + resp.datapoints[0].maximum.to_i
 			end
