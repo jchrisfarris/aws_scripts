@@ -76,5 +76,5 @@ ch_region () {
 
 
 # Here are some aliases
-alias "li"="aws ec2 describe-instances --output=text --query 'Reservations[].Instances[].{InstanceId:InstanceId,Status:State.Name,Type:InstanceType,PublicIpAddress:PublicIpAddress,PrivateIpAddress:PrivateIpAddress}'"
+alias "li"="aws ec2 describe-instances   --query 'Reservations[*].Instances[*].[Tags[?Key == `Name`].Value,InstanceId,State.Name,InstanceType,PublicIpAddress,PrivateIpAddress]' --output text | sed 'N;s/\n/ /'"
 alias "list-stacks"="aws cloudformation list-stacks --stack-status-filter CREATE_IN_PROGRESS CREATE_FAILED CREATE_COMPLETE ROLLBACK_IN_PROGRESS ROLLBACK_FAILED ROLLBACK_COMPLETE DELETE_IN_PROGRESS DELETE_FAILED UPDATE_IN_PROGRESS UPDATE_COMPLETE_CLEANUP_IN_PROGRESS UPDATE_COMPLETE UPDATE_ROLLBACK_IN_PROGRESS UPDATE_ROLLBACK_FAILED UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS UPDATE_ROLLBACK_COMPLETE --query 'StackSummaries[*].{Name:StackName,Status:StackStatus}' --output text"
