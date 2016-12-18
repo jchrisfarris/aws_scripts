@@ -35,6 +35,10 @@ OptionParser.new do |opts|
     Options[:delete] = v
   end
 
+  opts.on("--reset", "reset the user's password") do |v|
+    Options[:reset] = v
+  end
+
 end.parse!
 
 
@@ -152,15 +156,45 @@ def add_user(iam_client)
 	puts "User: #{Options[:username]} (#{user.arn}) created and added to #{Options[:group]}"
 	puts "Login url: https://#{account_alias}.signin.aws.amazon.com/console"
 	puts "Username: #{Options[:username]}"
+	puts "You must change your password and set MFA on first login"
+	puts "---end of email ---\n\n"
+	puts "Password: #{Options[:password]}"
+
+end
+
+# Reset a user's password
+def reset_password(iam_client)
+
+	# Catch any exceptions. We don't clean up if we do.
+	begin
+
+		# Now add a login Profile
+		resp = iam_client.update_login_profile({
+			user_name: Options[:username], # required
+			password: Options[:password], # required
+			password_reset_required: true,
+		})
+		# profile = resp.login_profile
+		# pp profile if Options[:verbose]
+
+		# This gets the account alias which is part of the login url
+		resp = iam_client.list_account_aliases()
+		pp resp if Options[:verbose]
+		account_alias = resp.account_aliases[0]
+	rescue Exception => e
+		puts "Error creating account #{e.message}"
+		exit 1
+	end
+
+	puts "Password for #{Options[:username]} reset to #{Options[:password]}\n\n"
+	puts "Login url: https://#{account_alias}.signin.aws.amazon.com/console"
+	puts "Username: #{Options[:username]}"
 	puts "Password: #{Options[:password]}"
 	puts "You must change your password and set MFA on first login"
+	exit 0
 end
 
 # These are required
-if ! Options[:group] 
-	puts "No group"
-	exit 1
-end
 if ! Options[:username] 
 	puts "No username"
 	exit 1
@@ -168,11 +202,19 @@ end
 
 # Defaults
 Options[:path] = "/" if ! Options[:path]
-
-
 iam_client = Aws::IAM::Client.new()
+
 delete_user(iam_client) if Options[:delete]
+
 Options[:password] = make_up_password() if ! Options[:password]
+
+reset_password(iam_client) if Options[:reset]
+
+if ! Options[:group] 
+	puts "No group"
+	exit 1
+end
+
 
 begin
 	add_user(iam_client)
