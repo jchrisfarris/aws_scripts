@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 #
 # Prompt for AWS Credentials and stores them in your OSX keychain 
 # Use this with the aws_account script.
