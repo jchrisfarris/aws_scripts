@@ -58,6 +58,8 @@ end
 # all before the user can be deleted. 
 def delete_user(iam_client)
 
+
+	# Remove Login Profile
 	begin
 		iam_client.delete_login_profile({
 			user_name: Options[:username],
@@ -66,6 +68,7 @@ def delete_user(iam_client)
 		puts "Login profile already gone"
 	end
 
+	# Remove Access Keys
 	begin
 		resp = iam_client.list_access_keys({
 			user_name: Options[:username]
@@ -80,6 +83,42 @@ def delete_user(iam_client)
 		puts "issue removing access keys: #{e.message}"
 	end			
 
+	# Remove MFA
+	begin 
+		resp = iam_client.list_mfa_devices({
+			user_name: Options[:username]
+		})
+
+		# First deactivate then remove. I don't think you can have multiple MFA, but the structure says you can
+		resp.mfa_devices.each do |d|
+			iam_client.deactivate_mfa_device({
+				user_name: Options[:username], # required
+				serial_number: d.serial_number, # required
+			})
+			iam_client.delete_virtual_mfa_device({
+				serial_number: d.serial_number, # required
+			})
+		end
+	rescue Exception => e
+		puts "issue removing MFA Devices: #{e.message}"
+	end
+
+	# Remove inline policies
+	begin 
+		resp = iam_client.list_user_policies({
+			user_name: Options[:username]
+		})
+		resp.policy_names.each do |p|
+			iam_client.delete_user_policy({
+				user_name: Options[:username], # required
+				policy_name: p, # required
+			})
+		end
+	rescue Exception => e
+		puts "issue removing inline policies: #{e.message}"
+	end
+
+	# Remove from Groups
 	begin 
 		resp = iam_client.list_groups_for_user({
 			user_name: Options[:username]
