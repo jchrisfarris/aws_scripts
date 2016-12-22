@@ -103,6 +103,21 @@ def delete_user(iam_client)
 		puts "issue removing MFA Devices: #{e.message}"
 	end
 
+	# Remove managed policies
+	begin 
+		resp = iam_client.list_attached_user_policies({
+			user_name: Options[:username]
+		})
+		resp.attached_policies.each do |p|
+			iam_client.detach_user_policy({
+				user_name: Options[:username], # required
+				policy_arn: p.policy_arn, # required
+			})
+		end
+	rescue Exception => e
+		puts "issue removing inline policies: #{e.message}"
+	end
+
 	# Remove inline policies
 	begin 
 		resp = iam_client.list_user_policies({
@@ -131,6 +146,21 @@ def delete_user(iam_client)
 		end
 	rescue Exception => e
 		puts "issue removing from groups: #{e.message}"
+	end
+
+	# Purge CodeCommit SSH Keys
+	begin
+		resp = iam_client.list_ssh_public_keys({
+			user_name: Options[:username],
+		})
+		resp.ssh_public_keys.each do |key|
+			resp = iam_client.delete_ssh_public_key({
+				user_name: Options[:username], # required
+				ssh_public_key_id: key.ssh_public_key_id, # required
+			})
+		end
+	rescue Exception => e
+		puts "Issue removing SSH Keys #{e.message}"
 	end
 
 	# yay. Can finally do what I came for.
