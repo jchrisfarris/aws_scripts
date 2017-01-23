@@ -7,7 +7,7 @@ require 'optparse'
 
 options = {}
 OptionParser.new do |opts|
-  opts.banner = "Usage: example.rb [options]"
+  opts.banner = "Usage: example.rb [options] <name_of_instance>"
 
   opts.on("-v", "--[no-]verbose", "Run verbosely") do |v|
     options[:verbose] = v
@@ -62,12 +62,18 @@ permission={ ip_permissions: [
 
 ec2=Aws::EC2::Client.new()
 
-result=ec2.describe_instances({filters: [ { name: "tag:Name", values: [ "#{instance_name}" ] }, { name: "instance-state-name", values: ['running']} ] } )
-# puts result.reservations.inspect
-if result.reservations.length == 0
-	puts "Could not find #{instance_name}"
+begin: 
+	result=ec2.describe_instances({filters: [ { name: "tag:Name", values: [ "#{instance_name}" ] }, { name: "instance-state-name", values: ['running']} ] } )
+	# puts result.reservations.inspect
+	if result.reservations.length == 0
+		puts "Could not find #{instance_name}"
+		exit 1
+	end
+rescue Aws::EC2::Errors::AuthFailure => e
+	puts "Auth Failure: #{e.message}. Are you keys loaded?"
 	exit 1
 end
+
 
 i=result.reservations[0].instances[0]
 sg_id = i.security_groups[0].group_id
@@ -101,3 +107,4 @@ else
 		puts "Failure: " + e.message
 	end
 end
+
