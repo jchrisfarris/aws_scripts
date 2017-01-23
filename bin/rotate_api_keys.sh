@@ -29,7 +29,7 @@ if [ $key_count -gt 1 ] ; then
 			exit 1
 		fi
 	else
-		echo "Could not find an inactive key to delete. I cannot proceed"
+		echo "More than two keys present, and I could not find an inactive key to delete. I cannot proceed"
 		exit 1
 	fi
 # else nothing, there is room to make a new key
@@ -44,7 +44,11 @@ if [ $? -ne 0 ] ; then
 	exit 1
 fi
 
-AWSUSER=`echo $ACCOUNT_CREDS | awk '{print $NF}' `
+# Reuse the existing AWSUSER if present. Otherwise use the IAM Username returned from CreateAccessKey
+if [ -z $AWSUSER ] ; then
+	AWSUSER=`echo $ACCOUNT_CREDS | awk '{print $NF}' `
+fi
+
 export AWS_ACCESS_KEY_ID=`echo $ACCOUNT_CREDS | awk '{print $2}' `
 export AWS_SECRET_ACCESS_KEY=`echo $ACCOUNT_CREDS | awk '{print $4}' `
 
@@ -55,8 +59,8 @@ fi
 
 echo "Adding new credentials for $AWS_ACCESS_KEY_ID to OSX Keychain"
 KEYCHAIN_ENTRY="${AWSUSER}@${AWS_DEFAULT_PROFILE}"
-security add-generic-password -U -c AWSK -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
-security add-generic-password -U -c AWSK -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w $AWS_SECRET_ACCESS_KEY
+security add-generic-password -U -c AWSK -D AWS_ACCESS_KEY_ID -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w $AWS_ACCESS_KEY_ID -T /usr/bin/security
+security add-generic-password -U -c AWSK -D AWS_SECRET_ACCESS_KEY -a AWS_SECRET_ACCESS_KEY -s $KEYCHAIN_ENTRY -w $AWS_SECRET_ACCESS_KEY
 
 echo -n "Added AWS_ACCESS_KEY_ID for $AWSUSER in $ACCOUNT: "
 security find-generic-password -a AWS_ACCESS_KEY_ID -s $KEYCHAIN_ENTRY -w
