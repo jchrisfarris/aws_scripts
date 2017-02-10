@@ -25,6 +25,7 @@ export PATH=$PATH:~/aws/aws_scripts/bin:~/aws/cfnDeployStack
 . ~/aws/aws_scripts/bin/aws_account.sh
 EOF
 echo ". ~/.aws_profile" >> ~/.profile
+chmod 700 ~/.aws_profile
 ```
 
 *deploy_stack.rb makes it easy to deploy stacks with lots of paramaters*
@@ -46,3 +47,17 @@ Updating Credentials
 ============================
 
 Execute the rotate_api_keys.sh script to rotate your API keys on a regular basis. 
+
+
+Strack trace issues with the AWS CLI
+======================================
+If you see a stack trace ending in
+```
+from six.moves import _thread
+ImportError: cannot import name _thread
+```
+do this:
+```
+sudo pip uninstall python-dateutil
+sudo pip install python-dateutil==2.2
+```
