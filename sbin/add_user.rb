@@ -39,6 +39,10 @@ OptionParser.new do |opts|
     Options[:reset] = v
   end
 
+  opts.on("--delete-mfa", "delete/reset the user's MFA") do |v|
+    Options[:delete_mfa] = v
+  end
+
 end.parse!
 
 
@@ -179,6 +183,38 @@ def delete_user(iam_client)
 end
 
 
+# Reset User's MFA
+# Which requires:
+# 	Deactivate the MFA
+#   Delete the MFA
+def delete_mfa(iam_client)
+
+	# Remove MFA
+	begin 
+		resp = iam_client.list_mfa_devices({
+			user_name: Options[:username]
+		})
+
+		# First deactivate then remove. I don't think you can have multiple MFA, but the structure says you can
+		resp.mfa_devices.each do |d|
+			iam_client.deactivate_mfa_device({
+				user_name: Options[:username], # required
+				serial_number: d.serial_number, # required
+			})
+			iam_client.delete_virtual_mfa_device({
+				serial_number: d.serial_number, # required
+			})
+		end
+		exit 0
+	rescue Exception => e
+		puts "issue removing MFA Devices: #{e.message}"
+		exit 1
+	end
+
+
+end
+
+
 # Add a user
 # Which entails
 # 	creating the IAM user
@@ -274,6 +310,7 @@ Options[:path] = "/" if ! Options[:path]
 iam_client = Aws::IAM::Client.new()
 
 delete_user(iam_client) if Options[:delete]
+delete_mfa(iam_client) if Options[:delete_mfa]
 
 Options[:password] = make_up_password() if ! Options[:password]
 
