@@ -19,7 +19,7 @@ aws_account () {
 	echo "Using $1 as my AWS Account"
 	# Allow you to not need that dang --profile on each command
 	export AWS_DEFAULT_PROFILE=$1
-
+	export AWS_PROFILE=$1
 
 	if [ ! -z "$2" ] ; then
 		export AWSUSER="$2"
@@ -56,7 +56,6 @@ aws_account () {
 	# Set the prompt so you know what you're doing
 	export COLOR="32m"
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
-
 }
 
 # Lets export a function that makes it easy to change my local region
@@ -70,7 +69,6 @@ ch_region () {
 	echo "Changing region to $1"
 	export AWS_DEFAULT_REGION=$1
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@AWS-$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
-
 }
 
 
