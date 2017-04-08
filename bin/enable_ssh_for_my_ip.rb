@@ -62,7 +62,7 @@ permission={ ip_permissions: [
 
 ec2=Aws::EC2::Client.new()
 
-begin: 
+begin
 	result=ec2.describe_instances({filters: [ { name: "tag:Name", values: [ "#{instance_name}" ] }, { name: "instance-state-name", values: ['running']} ] } )
 	# puts result.reservations.inspect
 	if result.reservations.length == 0
