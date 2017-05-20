@@ -850,10 +850,18 @@ end
 # Generate a manifest file from a template
 def generate_manifest(template_file)
 
-	template_body = File.read(template_file)
 	cf_client = Aws::CloudFormation::Client.new(region: ENV['AWS_DEFAULT_REGION'], profile: ENV['AWS_DEFAULT_PROFILE'])
+
 	begin
-		resp = cf_client.validate_template({template_body: template_body})
+		if template_file.start_with?("https://")
+			resp = cf_client.validate_template({template_url: template_file})
+			template_type = "S3Template"
+		else
+			template_body = File.read(template_file)
+			resp = cf_client.validate_template({template_body: template_body})
+			template_type = "LocalTemplate"
+
+		end
 		stack_params = resp.parameters
 		pp stack_params.inspect if Options[:debug]
 	rescue Exception => e
@@ -863,7 +871,7 @@ def generate_manifest(template_file)
 
 	todays_date=`date`
 	puts <<-EOH
-# cfnDeploy Manifest file generated from #{template_file} on #{todays_date}
+# deploy_stack.rb Manifest file generated from #{template_file} on #{todays_date}
 
 # These control how and where the cloudformation is executed 
 StackName: CHANGEME
@@ -871,8 +879,7 @@ OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
 Region: us-east-1
 TimeOut: 15m
 # You must specifiy LocalTemplate or S3Template but not both.
-LocalTemplate: #{template_file}
-# S3Template: https://s3.amazonaws.com/cloudformation-templates-us-east-1/WordPress_Chef.template
+#{template_type}: #{template_file}
 
 # Paramaters:
 # There are two kinds of parameters, regular and sourced. 
