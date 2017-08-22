@@ -46,7 +46,8 @@ aws_account () {
 	# echo "security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_ACCESS_KEY_ID -w"
 	# echo "security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_SECRET_ACCESS_KEY -w"
 	export AWS_ACCESS_KEY_ID=$(security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_ACCESS_KEY_ID -w)
-	export AWS_SECRET_ACCESS_KEY=$(security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_SECRET_ACCESS_KEY -w) 
+	export AWS_SECRET_ACCESS_KEY=$(security find-generic-password -s $KEYCHAIN_ENTRY -a AWS_SECRET_ACCESS_KEY -w)
+	unset AWS_SESSION_TOKEN
 
 	if [ -z $AWS_SECRET_ACCESS_KEY ] ; then
 	  echo "Unable to find the secret in the keychain"
