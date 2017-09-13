@@ -20,7 +20,7 @@ sudo -H pip install awscli --upgrade --ignore-installed six
 *Configure your login session:*
 ```
 cat <<EOF > ~/.aws_profile 
-export PATH=$PATH:~/aws/aws_scripts/bin:~/aws/cfnDeployStack
+export PATH=$PATH:~/aws/aws_scripts/bin
 . /usr/local/bin/aws_bash_completer
 . ~/aws/aws_scripts/bin/aws_account.sh
 EOF
