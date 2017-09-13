@@ -210,8 +210,6 @@ def delete_mfa(iam_client)
 		puts "issue removing MFA Devices: #{e.message}"
 		exit 1
 	end
-
-
 end
 
 
@@ -261,7 +259,8 @@ def add_user(iam_client)
 	puts "User: #{Options[:username]} (#{user.arn}) created and added to #{Options[:group]}"
 	puts "Login url: https://#{account_alias}.signin.aws.amazon.com/console"
 	puts "Username: #{Options[:username]}"
-	puts "You must change your password and set MFA on first login"
+	puts "You must change your password and set MFA on first login by going to this URL after setting your new password:"
+	puts "https://console.aws.amazon.com/iam/home?region=us-east-1#/users/#{Options[:username]}?section=security_credentials"
 	puts "---end of email ---\n\n"
 	puts "Password: #{Options[:password]}"
 
@@ -295,13 +294,14 @@ def reset_password(iam_client)
 	puts "Login url: https://#{account_alias}.signin.aws.amazon.com/console"
 	puts "Username: #{Options[:username]}"
 	puts "Password: #{Options[:password]}"
-	puts "You must change your password and set MFA on first login"
+	puts "You must change your password and set MFA on first login by going to this URL after setting your new password:"
+	puts "https://console.aws.amazon.com/iam/home?region=us-east-1#/users/#{Options[:username]}?section=security_credentials"
 	exit 0
 end
 
 # These are required
 if ! Options[:username] 
-	puts "No username"
+	puts "No username specified with --username"
 	exit 1
 end
 
