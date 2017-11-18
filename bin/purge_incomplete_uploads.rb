@@ -54,6 +54,7 @@ begin
 		resp1 = s3client.list_buckets()
 		bucket_list = resp1.buckets 
 	else
+		bucket_list[0] = {}
 		bucket_list[0]['name'] = options[:bucket]
 	end
 
@@ -94,9 +95,11 @@ begin
 					object_size = object_size + p.size
 					total_size = total_size + p.size
 				end
+                puts "#{bucket} #{u.key} #{u.initiated} #{object_size.to_filesize}"
+            else
+                puts "#{bucket} #{u.key} #{u.initiated}"
 			end
 
-			puts "#{bucket} #{u.key} #{u.initiated} #{object_size.to_filesize}"
 
 			if options[:delete]
 				resp = client.abort_multipart_upload({
