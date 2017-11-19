@@ -1,0 +1,190 @@
+#!/usr/bin/env python
+
+"""
+This script will use your credentials to assume a role and write the temporary credentials to your ~/.aws/credentials file
+
+"""
+
+import boto3
+from botocore.exceptions import ClientError
+import getpass
+import ConfigParser
+import datetime
+import os
+from types import MethodType
+
+AWS_CREDENTIALS_FILE = "{}/.aws/credentials"
+
+##########################################################################
+def get_token(username):
+    '''Prompt for the MFA Token'''
+    password = getpass.getpass("{}'s MFA Token: ".format(username))
+    return(password)
+
+def update_creds_file(aws_credentials_file, section, creds):
+    '''Add the temporary credentials to the ~/.aws/credentials file (overwriting as necessary)'''
+
+    config = ConfigParser.RawConfigParser()
+
+    # add some intelligence to adding a value or section.
+    def setVal(self,section,var, val):
+        if not self.has_section( section ):
+            self.add_section( section )
+        self.set( section, var, val )
+    config.setVal = MethodType( setVal, config )
+
+    # if there is no credentials file create it and seed it with the section we need
+    # as python's ini parser considers the word 'default' sacred and refuses to allow it's use unless it already exists
+    if not os.path.exists(aws_credentials_file):
+        with open( aws_credentials_file, 'w') as credout:
+             credout.write("[" + section + "]\n")
+             credout.close()
+
+    config.read(aws_credentials_file)
+
+    if section == 'default' and not config.has_section( 'default' ):
+        with open( aws_credentials_file, 'a') as credout:
+            credout.write("\n[default]")
+            credout.close()
+
+    config.read(aws_credentials_file)
+
+    today = datetime.datetime.today()
+
+    config.setVal(section, 'aws_access_key_id', creds['AccessKeyId'])
+    config.setVal(section, 'aws_secret_access_key', creds['SecretAccessKey'])
+    config.setVal(section, 'aws_session_token', creds['SessionToken'])
+    config.setVal(section, 'aws_security_token', creds['SessionToken'])
+    config.setVal(section, 'expires', creds['Expiration'])
+    config.setVal(section, 'last_updated', today.strftime('%b %d, %Y at %I:%M%p'))
+
+    with open(aws_credentials_file, 'w+') as configfile:
+        config.write(configfile)
+
+def get_account_alias(iam_client):
+    '''Get the friendly name of the AWS account'''
+    try:
+        response = iam_client.list_account_aliases()
+        return(response['AccountAliases'][0])
+    except ClientError as e:
+        print("Failed to get account alias")
+        exit(1)
+# end get_account_alias()
+
+def get_mfa_device(iam_client, username):
+    '''Pull the user's MFA Serial Number'''
+    try:
+        response = iam_client.list_mfa_devices(UserName=username )
+        return(response['MFADevices'][0]['SerialNumber'])
+    except ClientError as e:
+        print("Failed to MFA Device for {}: e".format(username, e))
+        exit(1)
+
+def get_username(iam_client):
+    '''Get the username for this set of keys that are currently active'''
+    try:
+        response = iam_client.get_user()
+        username = response['User']['UserName']
+        return(username)
+    except ClientError as e:
+        print("Unable to get username: {}".format(e))
+        exit(1)
+
+def get_role_arn(iam_client, arn_name):
+    '''Get the username for this set of keys that are currently active'''
+    try:
+        response = iam_client.get_user()
+        userarn = response['User']['Arn']
+        account_id = userarn.split(':')[4]
+        return("arn:aws:iam::{}:role/{}".format(account_id, arn_name))
+    except ClientError as e:
+        print("Unable to get username: {}".format(e))
+        exit(1)
+
+def get_session_creds(sts_client, mfa_serial, token, duration):
+    '''Don't assume a role, just get a set of MFA authenticated credentials'''
+    try:
+        response = sts_client.get_session_token(
+            DurationSeconds=duration,
+            SerialNumber=mfa_serial,
+            TokenCode=token
+        )
+        return(response['Credentials'])
+    except ClientError as e:
+        print("Unable to get session token: {}".format(e))
+        exit(1)
+
+
+def assume_role(sts_client, role_arn, session_name, mfa_serial, token, duration):
+    '''Get the temporary Credentials for the passed in role, using the SAML Assertion as authentication'''
+    try:
+        response = sts_client.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName=session_name,
+            DurationSeconds=duration,
+            SerialNumber=mfa_serial,
+            TokenCode=token
+        )
+        return(response['Credentials'])
+    except ClientError as e:
+        print("Failed to get creds for {}: {}".format(role_arn, e))
+        exit(1)
+# end get_sts_token()        
+
+def do_args():
+    '''Process Arguments'''
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--debug", help="print debugging info", action='store_true')
+    parser.add_argument("--profile", help="Profile to write the temp credentials to", default='')
+    parser.add_argument("--file", help="Path to AWS Credentials File", default="")
+    parser.add_argument("--role", help="Role to Assume")
+    parser.add_argument("--code", help="MFA Code")
+    parser.add_argument("--session_name", help="Session Name for Assume Role", default="")
+    parser.add_argument("--duration", help="Session Duration in seconds", default="36000")
+
+    args = parser.parse_args()
+
+    args.duration = int(args.duration) # This must be an int
+    return(args)
+
+def main(args):
+
+    iam_client = boto3.client('iam')
+
+    if args.file == "":
+        args.file = AWS_CREDENTIALS_FILE.format(os.environ['HOME'])
+
+
+
+    username = get_username(iam_client)
+    mfa_serial = get_mfa_device(iam_client, username)
+    if args.code:
+        token = args.code
+    else:
+        token = get_token(username)
+
+    sts_client = boto3.client('sts')
+    if args.role:
+        if args.session_name == "":
+            args.session_name = username
+        if args.profile == "":
+            args.profile = "{}-{}".format(get_account_alias(iam_client), args.role)
+        role_arn = get_role_arn(iam_client, args.role)
+        # Deal with the 1hr limit
+        if args.duration > 3600:
+            args.duration = 3600
+        creds = assume_role(sts_client, role_arn, args.session_name, mfa_serial, token, args.duration)
+    else:
+        if args.profile == "":
+            args.profile = "{}-mfa".format(get_account_alias(iam_client))
+        creds = get_session_creds(sts_client, mfa_serial, token, args.duration)
+
+    print("Writing {} as {} to {}".format(creds[u'AccessKeyId'], args.profile, args.file))
+    update_creds_file(args.file, args.profile, creds)
+
+
+if __name__ == "__main__":
+    args = do_args()
+    main(args)
+
