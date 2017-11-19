@@ -67,7 +67,7 @@ def get_account_alias(iam_client):
         response = iam_client.list_account_aliases()
         return(response['AccountAliases'][0])
     except ClientError as e:
-        print("Failed to get account alias")
+        print("Failed to get account alias: {}".format(e))
         exit(1)
 # end get_account_alias()
 
@@ -77,7 +77,7 @@ def get_mfa_device(iam_client, username):
         response = iam_client.list_mfa_devices(UserName=username )
         return(response['MFADevices'][0]['SerialNumber'])
     except ClientError as e:
-        print("Failed to MFA Device for {}: e".format(username, e))
+        print("Failed to find MFA Device for {}: {}".format(username, e))
         exit(1)
 
 def get_username(iam_client):
@@ -90,16 +90,18 @@ def get_username(iam_client):
         print("Unable to get username: {}".format(e))
         exit(1)
 
-def get_role_arn(iam_client, arn_name):
+def get_role_arn(iam_client, arn_name, account_id=None):
     '''Get the username for this set of keys that are currently active'''
-    try:
-        response = iam_client.get_user()
-        userarn = response['User']['Arn']
-        account_id = userarn.split(':')[4]
-        return("arn:aws:iam::{}:role/{}".format(account_id, arn_name))
-    except ClientError as e:
-        print("Unable to get username: {}".format(e))
-        exit(1)
+    if account_id is None:
+        try:
+            response = iam_client.get_user()
+            userarn = response['User']['Arn']
+            account_id = userarn.split(':')[4]
+        except ClientError as e:
+            print("Unable to get account_id: {}".format(e))
+            exit(1)
+    return("arn:aws:iam::{}:role/{}".format(account_id, arn_name))
+
 
 def get_session_creds(sts_client, mfa_serial, token, duration):
     '''Don't assume a role, just get a set of MFA authenticated credentials'''
@@ -127,7 +129,7 @@ def assume_role(sts_client, role_arn, session_name, mfa_serial, token, duration)
         )
         return(response['Credentials'])
     except ClientError as e:
-        print("Failed to get creds for {}: {}".format(role_arn, e))
+        print(u"Failed to get creds for {}: {}".format(role_arn, e))
         exit(1)
 # end get_sts_token()        
 
@@ -142,6 +144,8 @@ def do_args():
     parser.add_argument("--code", help="MFA Code")
     parser.add_argument("--session_name", help="Session Name for Assume Role", default="")
     parser.add_argument("--duration", help="Session Duration in seconds", default="36000")
+    parser.add_argument("--account", help="Assume the Role in this account")
+
 
     args = parser.parse_args()
 
@@ -170,7 +174,7 @@ def main(args):
             args.session_name = username
         if args.profile == "":
             args.profile = "{}-{}".format(get_account_alias(iam_client), args.role)
-        role_arn = get_role_arn(iam_client, args.role)
+        role_arn = get_role_arn(iam_client, args.role, args.account)
         # Deal with the 1hr limit
         if args.duration > 3600:
             args.duration = 3600
