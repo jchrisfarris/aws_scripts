@@ -59,6 +59,35 @@ aws_account () {
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 }
 
+aws_mfa () {
+	if [ -z $1 ] ; then
+	  echo "Usage: aws_mfa <aws_account_name> <region>"
+	  return 1
+	fi
+
+	echo "Using $1 as my AWS Account"
+	# Allow you to not need that dang --profile on each command
+	export AWS_DEFAULT_PROFILE=$1
+	export AWS_PROFILE=$1
+
+	if [ ! -z "$2" ] ; then
+		export AWS_DEFAULT_REGION="$2"
+	else
+		export AWS_DEFAULT_REGION="us-east-1"
+	fi
+
+	# Escape the ][ lest you are using a regex. eek
+	grep "\[profile $1\]" ~/.aws/config > /dev/null 2>&1
+	if [ $? != 0 ] ; then
+	  echo "Invalid profile. Check the files in ~/.aws/config"
+	  return 1
+	fi
+
+	# Set the prompt so you know what you're doing
+	export COLOR="32m"
+	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
+}
+
 # Lets export a function that makes it easy to change my local region
 ch_region () {
 
