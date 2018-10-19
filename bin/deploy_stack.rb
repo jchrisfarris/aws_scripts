@@ -32,7 +32,7 @@ OptionParser.new do |opts|
 	opts.on("-d", "--dry-run", "Do everything up to the update/create_stack") do |v|
 		Options[:dryrun] = v
 	end
-	opts.on("-m", "--manifest file", "Process this mainifest file") do |file|
+	opts.on("-m", "--manifest file", "Process this manifest file") do |file|
 		Options[:manifest] = file
 	end
 	opts.on("-D", "--debug file", "Spits out logs of debug info ") do |file|
@@ -44,7 +44,7 @@ OptionParser.new do |opts|
 	opts.on("-g", "--generate template", "Generate a template manifest from a cloudformation template ") do |template|
 		Options[:generate] = template
 	end
-	opts.on("-u", "--allow_update resource1,resource2,resourceN", Array, "allow updates to specified resource overridding the stack policy") do |r|
+	opts.on("-u", "--allow_update resource1,resource2,resourceN", Array, "allow updates to specified resource overriding the stack policy") do |r|
 		Options[:allow_update] = r
 	end
 	opts.on("--price", "Print the cost of the stack and exit") do |v|
@@ -118,7 +118,7 @@ def get_manifest()
 	DebugLog.write("Manifest: " + manifest.inspect + "\n\n\n") if Options[:debug]
 
 	if ! ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && ! manifest['S3Template']
-		puts "Your manifest must contain either LocalTemplate, JsonTemplate or S3Template. I cannot proceed"
+		puts "Your manifest must contain either LocalTemplate, JsonTemplate or S3Template. I cannot proceed."
 		exit 1
 	end
 	if ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && manifest['S3Template']
@@ -154,11 +154,11 @@ def get_deploy_params(manifest, cf_client, template_body)
 		stack_params = resp.parameters
 		# puts stack_params.inspect
 	rescue Exception => e
-		puts "ERROR: Unable to validate the template: #{e.message} Aborting"
+		puts "ERROR: Unable to validate the template: #{e.message}. Aborting"
 		exit 1
 	end
 
-	# Get the resources from the prerequestite stacks
+	# Get the resources from the prerequisite stacks
 	resources = {}
 	if manifest['DependsOnStacks'] != nil
 		manifest['DependsOnStacks'].each do |stack|
@@ -255,7 +255,7 @@ def create_changeset(changeset_name)
 		elsif ( manifest['JsonTemplate'] || manifest['LocalTemplate'] )
 			command['template_body'] = template_body
 		else
-			puts "ERROR: Idon't have a template. Aborting.".red
+			puts "ERROR: I don't have a template. Aborting.".red
 			exit 1
 		end
 		if manifest['NotificationARN']
@@ -532,7 +532,7 @@ def get_stack_resources(stack_name, cf_client)
 	return my_stack
 end
 
-# Perform the acutal update or create
+# Perform the actual update or create
 def update_create_stack(manifest, parameters, template_body, action, cf_client)
 
 	if action == "create"
@@ -657,7 +657,7 @@ def wait_for_stack_to_complete(stack_name, region, cf_client)
 			resp = cf_client.describe_stack_events({ stack_name: stack_name, next_token: next_token })
 			puts "\e[H\e[2J" # Clear the screen
 			resp.stack_events.reverse.each do |event|
-				#Ignore all events that occured more than 20 minutes ago
+				#Ignore all events that occurred more than 20 minutes ago
 				next if event.timestamp < (Time.now.getutc - 20*60)
 				color_status=get_colorized_resource_status(event.resource_status)
 				puts "#{event.timestamp} #{color_status} #{event.logical_resource_id} (#{event.resource_type}): #{event.resource_status_reason}"
@@ -681,7 +681,7 @@ def wait_for_stack_to_complete(stack_name, region, cf_client)
 end # end wait_for_stack_to_complete
 
 # Generate the stack Policy we will use to create/update
-# TODO: manage overridign the policy on update
+# TODO: manage overriding the policy on update
 def generate_update_stack_policy(manifest, cf_client)
 
 	return nil if ! Options[:allow_update]
@@ -696,7 +696,7 @@ def generate_update_stack_policy(manifest, cf_client)
 
 	Options[:allow_update].each do |logical_resource_id|
 
-		# # We must remove the appoved resource from the existing policy because deny trumps an allow
+		# # We must remove the approved resource from the existing policy because deny trumps an allow
 		stack_policy['Statement'].each do |s|
 			next if s['Effect'] == "Allow"
 			s['Resource'].each do |r|
@@ -733,7 +733,7 @@ def print_stack_cost(manifest, cf_client, template_body, deploy_params)
 	elsif ( manifest['JsonTemplate'] || manifest['LocalTemplate'] )
 		command['template_body'] = template_body
 	else
-		puts "ERROR: Idon't have a template. Aborting.".red
+		puts "ERROR: I don't have a template. Aborting.".red
 		exit 1
 	end
 	# Now issue the call
@@ -794,7 +794,7 @@ def execute_postinstall(cf_client, manifest, action)
 end #execute_postinstall()
 
 # Execute a Pre-Install Script. Useful if you need to zip up some Lambdas or something
-# items inside {{ }} are populated from paramaters, either explictly defined, or sourced from another stack
+# items inside {{ }} are populated from parameters, either explicitly defined, or sourced from another stack
 def execute_preinstall(cf_client, manifest, parameters)
 
 	# puts parameters.inspect
@@ -1022,7 +1022,7 @@ if Options[:postinstall]
 	exit 0
 end
 
-# Return a link to a pricing calculator for the stack and it's params
+# Return a link to a pricing calculator for the stack and its params
 if Options[:price]
 	manifest = get_manifest()
 	puts "Getting Price for " + manifest['StackName'] + " in region " + manifest['Region']
