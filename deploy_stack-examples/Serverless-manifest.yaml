@@ -12,7 +12,7 @@ StackName: MyServerlessLambda
 OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
 Region: us-east-1
 TimeOut: 15m
-# You must specifiy JsonTemplate or S3Template but not both.
+# You must specify JsonTemplate or S3Template but not both.
 JsonTemplate: Serverless.cform
 # S3Template: https://s3.amazonaws.com/cloudformation-templates-us-east-1/WordPress_Chef.template
 

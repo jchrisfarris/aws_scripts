@@ -878,7 +878,7 @@ StackName: CHANGEME
 OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
 Region: us-east-1
 TimeOut: 15m
-# You must specifiy LocalTemplate or S3Template but not both.
+# You must specify LocalTemplate or S3Template but not both.
 #{template_type}: #{template_file}
 
 # Paramaters:
