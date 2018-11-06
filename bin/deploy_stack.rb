@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 # This script takes a Manifest file and deploys the stack.
-# 
+#
 
 require 'yaml'
 require 'json'
@@ -20,7 +20,7 @@ require 'aws-sdk-resources'
 # -D --debug: Dump lots of puts something.inspect
 # -t --test: Validate your template
 # -g --generate: generate a manifest file from a template
-# -p --stack-policy: Specify a new Stack policy for an update. 
+# -p --stack-policy: Specify a new Stack policy for an update.
 
 Options = {}
 OptionParser.new do |opts|
@@ -67,7 +67,7 @@ OptionParser.new do |opts|
 	end
 	opts.on("--create-changeset-description description", "Description for a new changeset") do |description|
 		Options[:create_changeset_description] = description
-	end	
+	end
 	opts.on("--execute-changeset name", "Execute Previously Created changeset") do |name|
 		Options[:execute_changeset] = name
 	end
@@ -80,20 +80,23 @@ OptionParser.new do |opts|
 	opts.on("--list-changesets", "List the names of the changesets for this stack") do |v|
 		Options[:list_changesets] = v
 	end
+	opts.on("--template-url template_url", "Override Manifest to use the following template URL") do |template_url|
+		Options[:template_url] = template_url
+	end
 end.parse!
 
 puts "Override Parameters: " if Options[:verbose]
 pp ARGV if Options[:verbose]
 # exit 1
 
-# These are defined for both colorization of status, and to determine success/fail. 
+# These are defined for both colorization of status, and to determine success/fail.
 ResourceGoodStatus=["CREATE_COMPLETE",  "UPDATE_COMPLETE"]
 ResourceBadStatus=[ "CREATE_FAILED", "DELETE_IN_PROGRESS", "DELETE_FAILED", "DELETE_COMPLETE",
 		"DELETE_COMPLETE", "DELETE_SKIPPED", "UPDATE_FAILED"]
 ResourceTempStatus=["CREATE_IN_PROGRESS", "UPDATE_IN_PROGRESS"]
-StackTempStatus=["N/A", "CREATE_IN_PROGRESS",  "ROLLBACK_IN_PROGRESS",  "DELETE_IN_PROGRESS", "UPDATE_IN_PROGRESS", 
+StackTempStatus=["N/A", "CREATE_IN_PROGRESS",  "ROLLBACK_IN_PROGRESS",  "DELETE_IN_PROGRESS", "UPDATE_IN_PROGRESS",
 		"UPDATE_COMPLETE_CLEANUP_IN_PROGRESS",  "UPDATE_ROLLBACK_IN_PROGRESS", "UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS"]
-StackDoneStatus=["CREATE_FAILED", "CREATE_COMPLETE", "ROLLBACK_FAILED", "ROLLBACK_COMPLETE", "DELETE_FAILED", "DELETE_COMPLETE", 
+StackDoneStatus=["CREATE_FAILED", "CREATE_COMPLETE", "ROLLBACK_FAILED", "ROLLBACK_COMPLETE", "DELETE_FAILED", "DELETE_COMPLETE",
 		"UPDATE_COMPLETE",  "UPDATE_ROLLBACK_FAILED",  "UPDATE_ROLLBACK_COMPLETE"]
 StackGoodStatus=["CREATE_COMPLETE", "UPDATE_COMPLETE"]
 
@@ -101,14 +104,14 @@ StackGoodStatus=["CREATE_COMPLETE", "UPDATE_COMPLETE"]
 
 def get_manifest()
 
-	if ! Options[:manifest] 
+	if ! Options[:manifest]
 		puts "You didn't specify a manifest file. Not doing anything"
 		exit 1
 	end
 
 	begin
 		manifest = YAML.load_file(Options[:manifest])
-	rescue Psych::SyntaxError => e 
+	rescue Psych::SyntaxError => e
 		puts "Syntax error with Manifest: #{e.message}"
 		exit 1
 	rescue => e
@@ -117,7 +120,13 @@ def get_manifest()
 	end
 	DebugLog.write("Manifest: " + manifest.inspect + "\n\n\n") if Options[:debug]
 
-	if ! ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && ! manifest['S3Template'] 
+
+	# Allow override of template_url on commandline
+	if Options[:template_url]
+		manifest['S3Template'] = Options[:template_url]
+	end
+
+	if ! ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && ! manifest['S3Template']
 		puts "Your manifest must contain either LocalTemplate, JsonTemplate or S3Template. I cannot proceed"
 		exit 1
 	end
@@ -142,8 +151,8 @@ def get_template(manifest, cf_client)
 	end
 	return(template_body)
 end
-	
-def get_deploy_params(manifest, cf_client, template_body)		
+
+def get_deploy_params(manifest, cf_client, template_body)
 	# Validate the template body and get back the list of params
 	begin
 		if manifest['S3Template']
@@ -198,7 +207,7 @@ def populate_parameters(manifest, params, resources)
 		end
 
 		# New feature - key=value on the command line override any other parameters
-		if ARGV != nil 
+		if ARGV != nil
 			ARGV.each do |arg|
 				(k,v) = arg.split("=")
 				value = v if k == key
@@ -263,11 +272,11 @@ def create_changeset(changeset_name)
 		end
 
 		# Create the change set
-		begin 
+		begin
 			puts "Creating changeset for #{manifest['StackName']}"
 			resp = cf_client.create_change_set(command)
 			puts "Created changeset #{changeset_name}: #{resp.id}"
-		rescue => e 
+		rescue => e
 			puts "Error creating changeset. #{e.message}".red
 			exit 1
 		end
@@ -337,7 +346,7 @@ def describe_changeset(cf_client, manifest, changeset_name, abort)
 		policy_violations += allowed_update(change.logical_resource_id, change.action, stack_policy, change.replacement)
 	end
 
-	if policy_violations > 0 
+	if policy_violations > 0
 		puts "\nChange Set cannot be executed due to Stack Policy Violations.".red
 		puts "You must update this stack using the normal means"
 		exit 1 if abort
@@ -397,7 +406,7 @@ def deploy_stack()
 	if manifest['PreInstallScript']
 		execute_preinstall(cf_client, manifest, deploy_params)
 
-		# Exit now if we've been asked to only run the pre-install script. 
+		# Exit now if we've been asked to only run the pre-install script.
 		if Options[:preinstall]
 			exit 0
 		end
@@ -406,7 +415,7 @@ def deploy_stack()
 	# Ok, now we create/update the stack
 	update_create_stack(manifest, deploy_params, template_body, action, cf_client)
 
-	if ! Options[:dryrun]  
+	if ! Options[:dryrun]
 		# Now we wait for the operation to complete
 		stack_status = wait_for_stack_to_complete(manifest['StackName'], manifest['Region'], cf_client)
 		if StackGoodStatus.include?(stack_status)
@@ -463,10 +472,10 @@ end #execute_postinstall()
 # return the stack specified by stack_name
 # Will barf if there are multiple stacks with the same name
 def get_stack(stack_name, region, cf_client)
-	# Does this stack exist in my region? 
-	begin 
+	# Does this stack exist in my region?
+	begin
 		resp = cf_client.describe_stacks({ stack_name: stack_name})
-		# Make sure resp.stacks[] has only 1 
+		# Make sure resp.stacks[] has only 1
 		if resp.stacks.length > 1
 			puts "ERROR: Multiple Stacks with name #{stack_name} exist in #{region}".red
 			exit 1
@@ -483,14 +492,14 @@ def get_stack(stack_name, region, cf_client)
 end
 
 
-# Given a stack_name, return a hash of all the resources with the logical id as the 
+# Given a stack_name, return a hash of all the resources with the logical id as the
 # key and the physical resource id as the value
 def get_stack_resources(stack_name, cf_client)
 	my_stack = {}
 
 	# Get the resources from describe_stack_resources()
 	begin
-		resource_resp = cf_client.describe_stack_resources({ stack_name: stack_name })		
+		resource_resp = cf_client.describe_stack_resources({ stack_name: stack_name })
 		resources = resource_resp.stack_resources
 		my_resources = {}
 		# resort it as key=value
@@ -534,7 +543,7 @@ end
 
 # Perform the acutal update or create
 def update_create_stack(manifest, parameters, template_body, action, cf_client)
-	
+
 	if action == "create"
 		# Format the tags the way Amazon wants them
 		tags = []
@@ -575,7 +584,7 @@ def update_create_stack(manifest, parameters, template_body, action, cf_client)
 	# This creates the Stackpolicy from the manifest
 	stack_policy = {}
 	stack_policy['Statement'] = manifest['StackPolicy']
-	stack_policy_json = JSON.generate(stack_policy)	 	
+	stack_policy_json = JSON.generate(stack_policy)
 	# command['stack_policy_body'] = stack_policy_json
 
 	if action == "create"
@@ -640,7 +649,7 @@ def get_colorized_stack_status(status)
 		color_status=status.yellow
 	end
 	return color_status
-end	
+end
 
 def wait_for_stack_to_complete(stack_name, region, cf_client)
 	puts "Now waiting for stack completion"
@@ -665,7 +674,7 @@ def wait_for_stack_to_complete(stack_name, region, cf_client)
 			# next_token = resp.next_token
 			color_stack_status=get_colorized_stack_status(status)
 			puts "\n#{Time.now.getutc} Stack Status: #{color_stack_status}"
-			sleep 10 if StackTempStatus.include?(status) 
+			sleep 10 if StackTempStatus.include?(status)
 		end
 		# color_stack_status=get_colorized_stack_status(status)
 		# puts "Done Waiting: #{color_stack_status}"
@@ -738,7 +747,7 @@ def print_stack_cost(manifest, cf_client, template_body, deploy_params)
 	end
 	# Now issue the call
 	begin
-		resp = cf_client.estimate_template_cost(command)	
+		resp = cf_client.estimate_template_cost(command)
 		puts "Calculator URL: #{resp.url}"
 		exit 0
 	rescue Exception => e
@@ -800,7 +809,7 @@ def execute_preinstall(cf_client, manifest, parameters)
 	# puts parameters.inspect
 	script_body = manifest['PreInstallScript']
 	parameters.each do |p|
-		# puts p[:parameter_key] 
+		# puts p[:parameter_key]
 		key = "{{" + p[:parameter_key].to_s + "}}"
 		script_body.gsub!(key, p[:parameter_value].to_s)
 	end
@@ -873,7 +882,7 @@ def generate_manifest(template_file)
 	puts <<-EOH
 # deploy_stack.rb Manifest file generated from #{template_file} on #{todays_date}
 
-# These control how and where the cloudformation is executed 
+# These control how and where the cloudformation is executed
 StackName: CHANGEME
 OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
 Region: us-east-1
@@ -882,10 +891,10 @@ TimeOut: 15m
 #{template_type}: #{template_file}
 
 # Paramaters:
-# There are two kinds of parameters, regular and sourced. 
+# There are two kinds of parameters, regular and sourced.
 # Regular parameters are static and defined in the Parameters: section of this yaml file
 # Sourced are parameters that cfnDeploy will go and fetch from other Stacks.
-# This simple Serverless app does not depend on any other stacks. However if we start using VPC based 
+# This simple Serverless app does not depend on any other stacks. However if we start using VPC based
 # Lambdas, or have multiple stacks that need to interact, we will want to use Sourced Parameters
 
 ###########
@@ -925,7 +934,7 @@ SourcedParameters:
   # pVPCID: MyOtherStack.Outputs.VPCID
 
 ###########
-# Tags that apply to the stack. Will be inherited by some resources. 
+# Tags that apply to the stack. Will be inherited by some resources.
 ###########
 Tags:
   Name: StackNameChangeMe
@@ -937,11 +946,11 @@ Tags:
 # see http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html#stack-policy-reference
 ###########
 StackPolicy:
-    # All other resources should be modifiable. 
+    # All other resources should be modifiable.
   - Resource: "*"
     Effect: Allow
-    Principal: "*" 
-    Action: 
+    Principal: "*"
+    Action:
       - "Update:Modify"
       - "Update:Delete"
       - "Update:Replace"
@@ -971,24 +980,24 @@ if Options[:debug]
 	DebugLog.truncate(0)
 end
 
-if Options[:generate] 
+if Options[:generate]
 	generate_manifest(Options[:generate])
 	exit 0
 end
 
-if Options[:create_changeset] 
+if Options[:create_changeset]
 	create_changeset(Options[:create_changeset])
 	exit 0
 end
 
-if Options[:describe_changeset] 
+if Options[:describe_changeset]
 	manifest = get_manifest()
 	cf_client = Aws::CloudFormation::Client.new(region: manifest['Region'], profile: ENV['AWS_DEFAULT_PROFILE'])
 	describe_changeset(cf_client, manifest, Options[:describe_changeset], :false)
 	exit 0
 end
 
-if Options[:execute_changeset] 
+if Options[:execute_changeset]
 	manifest = get_manifest()
 	cf_client = Aws::CloudFormation::Client.new(region: manifest['Region'], profile: ENV['AWS_DEFAULT_PROFILE'])
 	describe_changeset(cf_client, manifest, Options[:execute_changeset], :true)
@@ -996,7 +1005,7 @@ if Options[:execute_changeset]
 	exit 0
 end
 
-if Options[:delete_changeset] 
+if Options[:delete_changeset]
 	manifest = get_manifest()
 	cf_client = Aws::CloudFormation::Client.new(region: manifest['Region'], profile: ENV['AWS_DEFAULT_PROFILE'])
 	cf_client.delete_change_set({
@@ -1006,7 +1015,7 @@ if Options[:delete_changeset]
 	exit 0
 end
 
-if Options[:list_changesets] 
+if Options[:list_changesets]
 	manifest = get_manifest()
 	cf_client = Aws::CloudFormation::Client.new(region: manifest['Region'], profile: ENV['AWS_DEFAULT_PROFILE'])
 	list_changesets(cf_client, manifest)
