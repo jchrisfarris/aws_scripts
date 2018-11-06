@@ -80,6 +80,9 @@ OptionParser.new do |opts|
 	opts.on("--list-changesets", "List the names of the changesets for this stack") do |v|
 		Options[:list_changesets] = v
 	end
+	opts.on("--template-url template_url", "Override Manifest to use the following template URL") do |template_url|
+		Options[:template_url] = template_url
+	end
 end.parse!
 
 puts "Override Parameters: " if Options[:verbose]
@@ -116,6 +119,11 @@ def get_manifest()
 		exit 1
 	end
 	DebugLog.write("Manifest: " + manifest.inspect + "\n\n\n") if Options[:debug]
+
+	# Allow override of template_url on commandline
+	if Options[:template_url]
+		manifest['S3Template'] = Options[:template_url]
+	end
 
 	if ! ( manifest['JsonTemplate'] || manifest['LocalTemplate']) && ! manifest['S3Template']
 		puts "Your manifest must contain either LocalTemplate, JsonTemplate or S3Template. I cannot proceed."
