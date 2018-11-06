@@ -12,7 +12,7 @@ StackName: MyServerlessLambda
 OnFailure: DO_NOTHING # accepts DO_NOTHING, ROLLBACK, DELETE
 Region: us-east-1
 TimeOut: 15m
-# You must specifiy JsonTemplate or S3Template but not both.
+# You must specify JsonTemplate or S3Template but not both.
 JsonTemplate: Serverless.cform
 # S3Template: https://s3.amazonaws.com/cloudformation-templates-us-east-1/WordPress_Chef.template
 
@@ -30,7 +30,7 @@ Parameters:
   pStartingNumber: 100000
 
   # Both pLambdaVersion and pSwaggerVersion are simple strings used to seperate versions of the lambda zip and swagger yaml
-  # between iterations. They can be in whatever format you want. 
+  # between iterations. They can be in whatever format you want.
 
   # Where to get the Lambda
   pLambdaVersion: lambda1.5
@@ -52,7 +52,7 @@ Parameters:
 
 
 ###########
-# Tags that apply to the stack. Will be inherited by some resources. 
+# Tags that apply to the stack. Will be inherited by some resources.
 ###########
 Tags:
   Name: MyServerlessLambda
@@ -63,15 +63,15 @@ Tags:
 ###########
 # These stacks are needed by the SourcedParameters section
 ###########
-DependsOnStacks: 
-# This stack does not depend on other stacks. 
+DependsOnStacks:
+# This stack does not depend on other stacks.
 
 ###########
 # Parameters that come from other deployed stacks.
 # Valid Sections are Resources, Outputs Parameters
 ###########
 SourcedParameters:
-  # This stack does not depend on resources deployed in other stacks. 
+  # This stack does not depend on resources deployed in other stacks.
 
 
 
@@ -82,30 +82,30 @@ SourcedParameters:
 ###########
 StackPolicy:
   # For this stack, we want to prevent deletion or accidental replacement of the DynamoDB Table
-  - Resource: 
+  - Resource:
     - "LogicalResourceId/DynamoDBTable"
     Effect: Deny
-    Principal: "*" 
-    Action: 
+    Principal: "*"
+    Action:
     - "Update:Delete"
     - "Update:Replace"
-  # All other resources should be modifiable. 
+  # All other resources should be modifiable.
   - Resource: "*"
     Effect: Allow
-    Principal: "*" 
-    Action: 
+    Principal: "*"
+    Action:
       - "Update:Modify"
       - "Update:Delete"
       - "Update:Replace"
 
-# # Not everything lives in Cloudformation. This script will execute when the stack is 
+# # Not everything lives in Cloudformation. This script will execute when the stack is
 # # either update_complete or create_complete
 # # Any string inside {{ }} that matches an stack output will have the value of that
 # # outpust substituted in.
 
 # For troubleshooting, call it with "#!/bin/bash -x"
 PostInstallScript: |
-  #!/bin/bash 
+  #!/bin/bash
   echo "Executing Post Install Script for  {{StackName}}"
 
   # Do a trivial update to populate the table
@@ -118,7 +118,7 @@ PostInstallScript: |
 
 
 PostUpdateScript: |
-  #!/bin/bash 
+  #!/bin/bash
   echo "Executing Post Update Script"
   echo ; echo
   echo "Hit {{ApiURL}}"
@@ -135,7 +135,7 @@ PreInstallScript: |
   swagger_object="s3://{{pArtifactBucket}}/{{pArtifactPrefix}}/{{pSwaggerVersion}}/{{pSwaggerFile}}"
   swagger_yaml="{{pSwaggerFile}}"
 
-  aws s3 ls $object 
+  aws s3 ls $object
   if [ $? -ne 0 ] ; then
     echo "Pushing new Lambda to S3 bucket $object"
     mkdir $$

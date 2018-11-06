@@ -14,15 +14,15 @@ Parameters:
   InstanceType: t2.micro
   SSHLocation: 157.166.0.0/16
   DBClass: db.t1.micro
-  DBName: wordpress 
+  DBName: wordpress
   DBUser: wordpress
   DBPassword: MySecretPasswordThatYouNeedToChangeUnlessYoureADumbAss
   MultiAZDatabase: true
   WebServerCapacity: 1
-  KeyName: PlaygroundVPC-key-20151228 
+  KeyName: PlaygroundVPC-key-20151228
 
 
-# Tags that apply to the stack. Will be inherited by some resources. 
+# Tags that apply to the stack. Will be inherited by some resources.
 Tags:
   Name: MyWordPressStack
   Createdby: Chris Farris
@@ -30,8 +30,8 @@ Tags:
   Environment: Dev
 
 # These stacks are needed by the SourcedParameters section
-DependsOnStacks: 
-  - Playground 
+DependsOnStacks:
+  - Playground
   - MyStack2
 # Parameters that come from other deployed stacks.
 # Valid Sections are Resources, Outputs Parameters
@@ -42,24 +42,24 @@ SourcedParameters:
   pSubnetIdC: Playground.Resources.rDMZSubnetC
   pHostedZoneId: Playground.Resources.rHostedZoneExternal
 
-StackPolicy: 
+StackPolicy:
 # For this stack, we want to prevent deletion or accidental replacement of the VPC or any of the Route 53 HostedZones
-# All resources should be modifiable. 
-  - Resource: 
+# All resources should be modifiable.
+  - Resource:
     - "LogicalResourceId/ElasticLoadBalancer"
     - "LogicalResourceId/EB*"
     Effect: Deny
-    Principal: "*" 
-    Action: 
+    Principal: "*"
+    Action:
     - "Update:Delete"
     - "Update:Replace"
   - Resource: "*"
     Effect: Allow
-    Principal: "*" 
+    Principal: "*"
     Action: Update:Modify
 
 
-# Not everything lives in Cloudformation. This script will execute when the stack is 
+# Not everything lives in Cloudformation. This script will execute when the stack is
 # either update_complete or create_complete
 PostInstallScript: |
   #/bin/bash
