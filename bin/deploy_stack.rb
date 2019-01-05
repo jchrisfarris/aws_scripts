@@ -616,8 +616,8 @@ def update_create_stack(manifest, parameters, template_body, action, cf_client)
 			end
 			puts "Stack #{action} id is #{resp.stack_id}"
 		rescue Aws::CloudFormation::Errors::ServiceError => e
-			if e.message == "No updates are to be performed."
-				puts e.message + " Exiting....".yellow
+			if e.message == "No updates are to be performed.".yellow
+				puts e.message + " Exiting...."
 				exit 0
 			end
 			puts "ERROR when #{action} #{manifest['StackName']}: #{e.message}".red
