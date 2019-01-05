@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-# Python script to delete all rows with a given Id value.
+# Python script to copy all rows from one table to another
 
 import sys, argparse
 import boto3
@@ -21,7 +21,7 @@ def do_args():
         exit(1)
     if not hasattr(args, 'dest') or args.dest == "":
         print("Must specify --dest")
-        exit(1)        
+        exit(1)
     # if args.key_attribute == "":
     #     print "Must specify --key_attribute"
     #     exit(1)
@@ -48,7 +48,7 @@ def main(args):
     batch.__exit__(None, None, None)
 
 if __name__ == '__main__':
-    try: 
+    try:
         args = do_args()
         main(args)
         exit(0)
