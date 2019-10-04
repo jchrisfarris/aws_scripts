@@ -96,7 +96,7 @@ aws_profile () {
 
 aws_mfa () {
 	if [ -z $1 ] ; then
-	  echo "Usage: aws_mfa <aws_account_name> <region>"
+	  echo "Usage: aws_mfa <aws_profile> <region>"
 	  return 1
 	fi
 
