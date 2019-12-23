@@ -3,28 +3,20 @@
 
 # Python script to copy all rows from one table to another
 
-import sys, argparse
+import sys, argparse, os
 import boto3
 from botocore.exceptions import ClientError
 
 def do_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--debug", help="print debugging info", action='store_true')
-    parser.add_argument("--source", help="Source Tablename")
-    parser.add_argument("--dest", help="dest Tablename")
+    parser.add_argument("--source", help="Source Tablename", required=True)
+    parser.add_argument("--dest", help="dest Tablename", required=True)
     # parser.add_argument("--key_attribute", help="primary key")
+    parser.add_argument("--dest-profile", help="Use this AWS Profile to write to the destination table (if in a different account)")
+    parser.add_argument("--dest-region", help="Use this AWS Profile to write to the destination table (if in a different account)", default=os.environ['AWS_DEFAULT_REGION'])
 
     args = parser.parse_args()
-
-    if not hasattr(args, 'source') or args.source == "":
-        print("Must specify --source")
-        exit(1)
-    if not hasattr(args, 'dest') or args.dest == "":
-        print("Must specify --dest")
-        exit(1)
-    # if args.key_attribute == "":
-    #     print "Must specify --key_attribute"
-    #     exit(1)
 
     return(args)
 
@@ -32,7 +24,16 @@ def main(args):
     # Connect to the table.
     dynamodb = boto3.resource('dynamodb')
     src_table = dynamodb.Table(args.source)
-    dest_table = dynamodb.Table(args.dest)
+
+    dest_region = args.dest_region
+
+    if args.dest_profile:
+        dest_session = boto3.Session(profile_name=args.dest_profile, region_name=dest_region)
+    else:
+        dest_session = boto3.Session(region_name=dest_region)
+
+    dest_dynamodb = dest_session.resource('dynamodb')
+    dest_table = dest_dynamodb.Table(args.dest)
 
     batch = dest_table.batch_writer()
     response = src_table.scan()
