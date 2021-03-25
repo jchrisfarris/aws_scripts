@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 
 # Python script to delete all rows with a given Id value.
 
-import boto.dynamodb
-import boto.dynamodb.condition as condition
+# import boto.dynamodb
+# import boto.dynamodb.condition as condition
 import sys, argparse
 import boto3
 from botocore.exceptions import ClientError
@@ -21,10 +21,10 @@ def do_args():
 	args = parser.parse_args()
 
 	if args.table == "":
-		print "Must specify --table"
+		print("Must specify --table")
 		exit(1)
 	if args.key_attribute == "":
-		print "Must specify --key_attribute"
+		print("Must specify --key_attribute")
 		exit(1)
 
 	return(args)
@@ -36,11 +36,11 @@ def main(args):
 
 	if not args.force:
 		# Print a warning
-		print 'About to delete all rows from table {}!!!'.format(args.table)
-		print 'Are you sure? (type "YES" to continue)'
-		response = raw_input().upper()
+		print('About to delete all rows from table {}!!!'.format(args.table))
+		print('Are you sure? (type "YES" to continue)')
+		response = input().upper()
 		if response != 'YES':
-			print 'OK, not deleting anything!'
+			print('OK, not deleting anything!')
 			quit()
 
 	batch = my_table.batch_writer()
