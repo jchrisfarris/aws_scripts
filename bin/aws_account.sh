@@ -61,7 +61,7 @@ aws_account () {
 
 aws_profile () {
 	if [ -z $1 ] ; then
-	  echo "Usage: aws_account <aws_profile> <region>"
+	  echo "Usage: aws_profile <aws_profile> <region>"
 	  return 1
 	fi
 
