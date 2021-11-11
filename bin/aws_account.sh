@@ -90,7 +90,7 @@ aws_profile () {
 
 	# Set the prompt so you know what you're doing
 	export COLOR="94m"
-	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
+	export PS1="\[\033[$COLOR\][\u@\h \W] @$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 }
 
 
@@ -133,9 +133,27 @@ ch_region () {
 
 	echo "Changing region to $1"
 	export AWS_DEFAULT_REGION=$1
-	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@AWS-$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
+	export PS1="\[\033[$COLOR\][\u@\h \W] @$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 }
 
+ch_aws_config () {
+
+	if [ "$1" == "" ] ; then
+		echo "usage: ch_aws_config <filename>"
+		return
+	fi
+
+	export AWS_CONFIG_FILE=~/.aws/$1
+
+	if [ ! -f $AWS_CONFIG_FILE ] ; then
+		echo "Cannot find config file $AWS_CONFIG_FILE"
+		unset AWS_CONFIG_FILE
+		return
+	fi
+
+	echo "Changing config file to $AWS_CONFIG_FILE"
+	export PS1="\[\033[$COLOR\][\u@\h \W] config-$1@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
+}
 
 # Here are some aliases
 alias "li"="aws ec2 describe-instances   --query 'Reservations[*].Instances[*].[Tags[?Key == \`Name\`].Value,InstanceId,State.Name,InstanceType,PublicIpAddress,PrivateIpAddress]' --output text | sed 'N;s/\n/ /'"
