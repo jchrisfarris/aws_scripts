@@ -15,6 +15,8 @@ def do_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--debug", help="print debugging info", action='store_true')
     parser.add_argument("--filename", help="Where to write the html file", required=True)
+    parser.add_argument("--cli-config-filename", help="Where to write the aws-config file", required=True)
+
     parser.add_argument("--rolename", help="Role Name to Assume", default="OrganizationAccountAccessRole")
     args = parser.parse_args()
     return(args)
@@ -22,6 +24,8 @@ def do_args():
 def main(args):
 
     accounts = list_accounts()
+
+    config_file = ""
 
     html_file = f"""
 <html>
@@ -56,16 +60,31 @@ Total Active Accounts:  {len(accounts)}
         </tr>
         """
 
+        config_file += f"""
+[profile {a['Name']}]
+role_arn=arn:aws:iam::{a['Id']}:role/{args.rolename}
+credential_source=Environment
+
+"""
+
     html_file += f"""
 </table>
 <font size=-2>Page Generated on {datetime.datetime.now()}</font>
 </body></html>
 """
 
+    file = open(args.cli_config_filename, "w")
+    file.write(config_file)
+    file.close()
+
     file = open(args.filename, "w")
     file.write(html_file)
     file.close()
     exit(0)
+
+
+
+
 
 def list_accounts():
     try:
