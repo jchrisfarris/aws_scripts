@@ -36,22 +36,26 @@ def main(args):
     dynamodb = boto3.resource('dynamodb')
     src_table = dynamodb.Table(args.source)
 
-    csvfile = open(args.dest, 'w')
-    writer = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL)
-    # writer.writerow(report_keys)
-
+    all_items = []
+    all_keys = []
     response = src_table.scan()
     while 'LastEvaluatedKey' in response :
         for item in response['Items']:
-            pprint(item)
-            print(".")
-            writer.writerow(item)
+            all_items.append(item)
+            all_keys += item.keys()
         response = src_table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
     for item in response['Items']:
-        pprint(item)
-        print(".")
-        writer.writerow(item)
+        all_items.append(item)
+        all_keys += item.keys()
 
+    unique_keys = list(dict.fromkeys(all_keys))
+    print(unique_keys)
+
+    csvfile = open(args.dest, 'w')
+    writer = csv.DictWriter(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL, fieldnames=unique_keys)
+    writer.writeheader()
+    for i in all_items:
+        writer.writerow(i)
     csvfile.close()
 
 
