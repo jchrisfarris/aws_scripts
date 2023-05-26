@@ -6,6 +6,8 @@
 import sys, argparse, os
 import datetime
 import boto3
+from time import sleep
+import time
 from botocore.exceptions import ClientError
 
 assume_role_link = "<a href=\"https://signin.aws.amazon.com/switchrole?account={}&roleName={}&displayName={}\">{}</a>"
