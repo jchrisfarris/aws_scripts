@@ -12,10 +12,7 @@ git clone https://github.com/jchrisfarris/aws_scripts.git
 ```
 
 *Now install the AWS CLI (you want to make sure to have the latest version)*
-```
-sudo easy_install pip
-sudo -H pip install awscli --upgrade --ignore-installed six
-```
+* It's best just to install this from AWS using their .pkg
 
 *Configure your login session:*
 ```
@@ -26,11 +23,6 @@ export PATH=$PATH:~/aws/aws_scripts/bin
 EOF
 echo ". ~/.aws_profile" >> ~/.profile
 chmod 700 ~/.aws_profile
-```
-
-*deploy_stack.rb makes it easy to deploy stacks with lots of paramaters*
-```
-sudo gem install aws-sdk colorize
 ```
 
 
@@ -49,15 +41,3 @@ Updating Credentials
 Execute the rotate_api_keys.sh script to rotate your API keys on a regular basis. 
 
 
-Strack trace issues with the AWS CLI
-======================================
-If you see a stack trace ending in
-```
-from six.moves import _thread
-ImportError: cannot import name _thread
-```
-do this:
-```
-sudo pip uninstall python-dateutil
-sudo pip install python-dateutil==2.2
-```
