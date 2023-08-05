@@ -94,11 +94,16 @@ aws_profile () {
 }
 
 
-aws_mfa () {
+aws_assume () {
 	if [ -z $1 ] ; then
-	  echo "Usage: aws_mfa <aws_profile> <region>"
+	  echo "Usage: aws_assume <aws_profile> <region>"
 	  return 1
 	fi
+
+	# Remove any existing environment keys
+	unset AWS_SECRET_ACCESS_KEY
+	unset AWS_ACCESS_KEY_ID
+	unset AWS_SESSION_TOKEN
 
 	echo "Using $1 as my AWS Account"
 	# Allow you to not need that dang --profile on each command
@@ -118,8 +123,10 @@ aws_mfa () {
 	  return 1
 	fi
 
+	assume $AWS_PROFILE
+
 	# Set the prompt so you know what you're doing
-	export COLOR="32m"
+	export COLOR="35m"
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 }
 
@@ -158,5 +165,6 @@ ch_aws_config () {
 # Here are some aliases
 alias "li"="aws ec2 describe-instances   --query 'Reservations[*].Instances[*].[Tags[?Key == \`Name\`].Value,InstanceId,State.Name,InstanceType,PublicIpAddress,PrivateIpAddress]' --output text | sed 'N;s/\n/ /'"
 alias "list-stacks"="aws cloudformation list-stacks --stack-status-filter CREATE_IN_PROGRESS CREATE_FAILED CREATE_COMPLETE ROLLBACK_IN_PROGRESS ROLLBACK_FAILED ROLLBACK_COMPLETE DELETE_IN_PROGRESS DELETE_FAILED UPDATE_IN_PROGRESS UPDATE_COMPLETE_CLEANUP_IN_PROGRESS UPDATE_COMPLETE UPDATE_ROLLBACK_IN_PROGRESS UPDATE_ROLLBACK_FAILED UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS UPDATE_ROLLBACK_COMPLETE --query 'StackSummaries[*].{Name:StackName,Status:StackStatus}' --output text"
-alias "list_regions"="aws ec2 describe-regions --query 'Regions[].[RegionName]' --output text"
+alias "list-regions"="aws ec2 describe-regions --query 'Regions[].[RegionName]' --output text"
 alias "cft-find"="aws cloudformation describe-stack-resources --physical-resource-id"
+alias "aws-unset"="unset AWS_SESSION_TOKEN AWS_DEFAULT_REGION AWS_SECRET_ACCESS_KEY AWS_ACCESS_KEY_ID"
