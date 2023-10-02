@@ -59,6 +59,7 @@ aws_account () {
 	export PS1="\[\033[$COLOR\][\u@\h \W] $AWSUSER@$AWS_DEFAULT_PROFILE ($AWS_DEFAULT_REGION):\[\033[0m\] "
 }
 
+# Function to set the EnvVar to use an existing profile
 aws_profile () {
 	if [ -z $1 ] ; then
 	  echo "Usage: aws_profile <aws_profile> <region>"
@@ -167,4 +168,4 @@ alias "li"="aws ec2 describe-instances   --query 'Reservations[*].Instances[*].[
 alias "list-stacks"="aws cloudformation list-stacks --stack-status-filter CREATE_IN_PROGRESS CREATE_FAILED CREATE_COMPLETE ROLLBACK_IN_PROGRESS ROLLBACK_FAILED ROLLBACK_COMPLETE DELETE_IN_PROGRESS DELETE_FAILED UPDATE_IN_PROGRESS UPDATE_COMPLETE_CLEANUP_IN_PROGRESS UPDATE_COMPLETE UPDATE_ROLLBACK_IN_PROGRESS UPDATE_ROLLBACK_FAILED UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS UPDATE_ROLLBACK_COMPLETE --query 'StackSummaries[*].{Name:StackName,Status:StackStatus}' --output text"
 alias "list-regions"="aws ec2 describe-regions --query 'Regions[].[RegionName]' --output text"
 alias "cft-find"="aws cloudformation describe-stack-resources --physical-resource-id"
-alias "aws-unset"="unset AWS_SESSION_TOKEN AWS_DEFAULT_REGION AWS_SECRET_ACCESS_KEY AWS_ACCESS_KEY_ID"
+alias "aws-unset"="unset AWS_SESSION_TOKEN AWS_DEFAULT_REGION AWS_SECRET_ACCESS_KEY AWS_ACCESS_KEY_ID AWS_CREDENTIAL_EXPIRATION AWS_PROFILE AWS_SESSION_EXPIRATION AWS_DEFAULT_PROFILE AWS_REGION ; export PS1='\h:\W \u\$ '"
