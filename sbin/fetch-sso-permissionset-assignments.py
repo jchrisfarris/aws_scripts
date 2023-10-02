@@ -66,6 +66,10 @@ def main(args, logger):
             InstanceArn=instance_arn,
             AccountId=account_id
         )
+        if 'PermissionSets' not in permset_response:
+            logger.info(f"No PermissionSets found for {account_id}")
+            continue
+
         for p in permset_response['PermissionSets']:
             if p not in PERMSETS:
                 PERMSETS[p] = lookup_permset(instance_arn, p)
