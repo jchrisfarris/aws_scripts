@@ -21,7 +21,7 @@ export PATH=$PATH:~/aws/aws_scripts/bin
 complete -C '/usr/local/bin/aws_completer' aws
 . ~/aws/aws_scripts/bin/aws_account.sh
 EOF
-echo ". ~/.aws_profile" >> ~/.profile
+echo ". ~/.aws_profile" >> ~/.bash_profile
 chmod 700 ~/.aws_profile
 ```
 
