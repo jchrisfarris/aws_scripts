@@ -18,7 +18,7 @@ git clone https://github.com/jchrisfarris/aws_scripts.git
 ```
 cat <<EOF > ~/.aws_profile 
 export PATH=$PATH:~/aws/aws_scripts/bin
-. /usr/local/bin/aws_bash_completer
+complete -C '/usr/local/bin/aws_completer' aws
 . ~/aws/aws_scripts/bin/aws_account.sh
 EOF
 echo ". ~/.aws_profile" >> ~/.profile
