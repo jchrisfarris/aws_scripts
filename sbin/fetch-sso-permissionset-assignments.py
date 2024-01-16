@@ -35,8 +35,9 @@ def main(args, logger):
     DATA = []
     PERMSETS = {}
 
-    sso_client = boto3.client('sso-admin')
-    ids_client = boto3.client('identitystore')
+    session = boto3.Session(profile_name=args.profile)
+    sso_client = session.client('sso-admin')
+    ids_client = session.client('identitystore')
     try:
         instance_arn = get_instance_arn(sso_client)
     except Exception as e:
@@ -48,7 +49,7 @@ def main(args, logger):
         logger.critical(f"Failed to get IdentityStoreId: {e}")
         exit(1)
     try:
-        accounts = get_consolidated_billing_subaccounts()
+        accounts = get_consolidated_billing_subaccounts(session)
     except Exception as e:
         logger.critical(f"Failed to list account: {e}")
         exit(1)
@@ -72,7 +73,7 @@ def main(args, logger):
 
         for p in permset_response['PermissionSets']:
             if p not in PERMSETS:
-                PERMSETS[p] = lookup_permset(instance_arn, p)
+                PERMSETS[p] = lookup_permset(session, instance_arn, p)
             assign_response = sso_client.list_account_assignments(
                 InstanceArn=instance_arn,
                 AccountId=account_id,
@@ -82,9 +83,9 @@ def main(args, logger):
 
                 if assignment['PrincipalId'] not in PRINCIPALS[assignment['PrincipalType']]:
                     if assignment['PrincipalType'] == 'USER':
-                        PRINCIPALS['USER'][assignment['PrincipalId']] = lookup_user(identity_store_id, assignment['PrincipalId'])
+                        PRINCIPALS['USER'][assignment['PrincipalId']] = lookup_user(session, identity_store_id, assignment['PrincipalId'])
                     elif assignment['PrincipalType'] == 'GROUP':
-                        PRINCIPALS['GROUP'][assignment['PrincipalId']] = lookup_group(identity_store_id, assignment['PrincipalId'])
+                        PRINCIPALS['GROUP'][assignment['PrincipalId']] = lookup_group(session, identity_store_id, assignment['PrincipalId'])
                     else:
                         print(f"Invalid PrincipalType: {assignment['PrincipalType']}. Abortin...")
                         exit(1)
@@ -105,32 +106,32 @@ def main(args, logger):
             writer.writerow(d)
 
 
-def lookup_permset(instance_arn, arn):
+def lookup_permset(session, instance_arn, arn):
     try:
-        sso_client = boto3.client('sso-admin')
+        sso_client = session.client('sso-admin')
         return(sso_client.describe_permission_set(InstanceArn=instance_arn, PermissionSetArn=arn)['PermissionSet']['Name'])
     except Exception as e:
         logger.warning(f"Got exception looking up permission set {arn}: {e}")
         return("NotFound")
 
 
-def lookup_user(identity_store_id, user_id):
+def lookup_user(session, identity_store_id, user_id):
     try:
-        ids_client = boto3.client('identitystore')
+        ids_client = session.client('identitystore')
         return(ids_client.describe_user(IdentityStoreId=identity_store_id, UserId=user_id)['DisplayName'])
     except Exception as e:
         logger.warning(f"Got exception looking up user {user_id}: {e}")
         return("NotFound")
 
-def lookup_group(identity_store_id, group_id):
+def lookup_group(session, identity_store_id, group_id):
     try:
-        ids_client = boto3.client('identitystore')
+        ids_client = session.client('identitystore')
         return(ids_client.describe_group(IdentityStoreId=identity_store_id, GroupId=group_id)['DisplayName'])
     except Exception as e:
         logger.warning(f"Got exception looking up group {group_id}: {e}")
         return("NotFound")
 
-def get_consolidated_billing_subaccounts():
+def get_consolidated_billing_subaccounts(session):
     # Returns: [
     #         {
     #             'Id': 'string',
@@ -142,7 +143,7 @@ def get_consolidated_billing_subaccounts():
     #             'JoinedTimestamp': datetime(2015, 1, 1)
     #         },
     #     ],
-    org_client = boto3.client('organizations')
+    org_client = session.client('organizations')
     output = []
     response = org_client.list_accounts(MaxResults=20)
     while 'NextToken' in response:
@@ -164,6 +165,7 @@ def get_identity_store_id(sso_client):
 def do_args():
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", help="A config profile to use")
     parser.add_argument("--debug", help="print debugging info", action='store_true')
     parser.add_argument("--error", help="print error info only", action='store_true')
     parser.add_argument("--outfile", help="Name of cvs file to create", required=True)
