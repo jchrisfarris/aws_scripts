@@ -62,41 +62,46 @@ def main(args, logger):
     # 4. For the User or Group, get the name and the permission set, save that in the list DATA
     for a in accounts:
         account_id = a['Id']
-        permset_response = sso_client.list_permission_sets_provisioned_to_account(
+        paginator = sso_client.get_paginator('list_permission_sets_provisioned_to_account')
+        permset_response = paginator.paginate(
             InstanceArn=instance_arn,
             AccountId=account_id
         )
-        if 'PermissionSets' not in permset_response:
-            logger.info(f"No PermissionSets found for {account_id}")
-            continue
+        # print(json.dumps(permset_response, default=str))
+        # exit(1)
+        # if 'PermissionSets' not in permset_response:
+        #     logger.info(f"No PermissionSets found for {account_id}")
+        #     continue
 
-        for p in permset_response['PermissionSets']:
-            if p not in PERMSETS:
-                PERMSETS[p] = lookup_permset(instance_arn, p)
-            assign_response = sso_client.list_account_assignments(
-                InstanceArn=instance_arn,
-                AccountId=account_id,
-                PermissionSetArn=p
-            )
-            for assignment in assign_response['AccountAssignments']:
+        # for p in permset_response['PermissionSets']:
+        for page in permset_response:
+            for p in page['PermissionSets']:
+                if p not in PERMSETS:
+                    PERMSETS[p] = lookup_permset(instance_arn, p)
+                assign_response = sso_client.list_account_assignments(
+                    InstanceArn=instance_arn,
+                    AccountId=account_id,
+                    PermissionSetArn=p
+                )
+                for assignment in assign_response['AccountAssignments']:
 
-                if assignment['PrincipalId'] not in PRINCIPALS[assignment['PrincipalType']]:
-                    if assignment['PrincipalType'] == 'USER':
-                        PRINCIPALS['USER'][assignment['PrincipalId']] = lookup_user(identity_store_id, assignment['PrincipalId'])
-                    elif assignment['PrincipalType'] == 'GROUP':
-                        PRINCIPALS['GROUP'][assignment['PrincipalId']] = lookup_group(identity_store_id, assignment['PrincipalId'])
-                    else:
-                        print(f"Invalid PrincipalType: {assignment['PrincipalType']}. Abortin...")
-                        exit(1)
+                    if assignment['PrincipalId'] not in PRINCIPALS[assignment['PrincipalType']]:
+                        if assignment['PrincipalType'] == 'USER':
+                            PRINCIPALS['USER'][assignment['PrincipalId']] = lookup_user(identity_store_id, assignment['PrincipalId'])
+                        elif assignment['PrincipalType'] == 'GROUP':
+                            PRINCIPALS['GROUP'][assignment['PrincipalId']] = lookup_group(identity_store_id, assignment['PrincipalId'])
+                        else:
+                            print(f"Invalid PrincipalType: {assignment['PrincipalType']}. Abortin...")
+                            exit(1)
 
-                if PRINCIPALS[assignment['PrincipalType']][assignment['PrincipalId']] != "NotFound":
-                    DATA.append({
-                        'Account Name':  a['Name'],
-                        'Account ID':    account_id,
-                        'PrincipalType': assignment['PrincipalType'],
-                        'PrincipalName': PRINCIPALS[assignment['PrincipalType']][assignment['PrincipalId']],
-                        'PermissionSet': PERMSETS[p]
-                    })
+                    if PRINCIPALS[assignment['PrincipalType']][assignment['PrincipalId']] != "NotFound":
+                        DATA.append({
+                            'Account Name':  a['Name'],
+                            'Account ID':    account_id,
+                            'PrincipalType': assignment['PrincipalType'],
+                            'PrincipalName': PRINCIPALS[assignment['PrincipalType']][assignment['PrincipalId']],
+                            'PermissionSet': PERMSETS[p]
+                        })
 
     with open(args.outfile, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
