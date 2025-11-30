@@ -61,18 +61,23 @@ def get_all_regions(session):
     return [region['RegionName'] for region in regions]
 
 def list_accounts():
-    """Get all AWS account IDs in the organization."""
+    """Get all AWS account IDs in the organization, excluding suspended accounts."""
     org_client = boto3.client('organizations')
     accounts = []
     try:
         paginator = org_client.get_paginator('list_accounts')
         for page in paginator.paginate():
-            accounts.extend([account['Id'] for account in page['Accounts']])
-        logger.debug("Successfully fetched list of accounts.")
+            # Filter accounts to only include those that are active
+            active_accounts = [
+                account['Id'] for account in page['Accounts'] if account['Status'] == 'ACTIVE'
+            ]
+            accounts.extend(active_accounts)
+        logger.debug("Successfully fetched list of active accounts.")
     except ClientError as e:
         logger.critical(f"Failed to list accounts in the organization: {e}")
         raise
     return accounts
+
 
 def main():
     parser = argparse.ArgumentParser(description='Fetch EC2 instance and AMI details across all accounts in the organization.')
