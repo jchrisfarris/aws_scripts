@@ -18,6 +18,7 @@ import boto3
 import csv
 import argparse
 import logging
+import re
 from botocore.exceptions import ClientError
 
 # Set up logging
@@ -60,15 +61,51 @@ def get_ec2_instances(region, session, account_id, account_name):
         reservations = ec2_client.describe_instances()
         for reservation in reservations['Reservations']:
             for instance in reservation['Instances']:
+                # Extract StateTransitionTime from StateTransitionReason
+                state_transition_reason = instance.get('StateTransitionReason', 'N/A')
+                state_transition_time = 'N/A'
+                if state_transition_reason != 'N/A':
+                    # Try to extract date from format like "User initiated (2025-08-05 00:15:30 GMT)"
+                    match = re.search(r'\((\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', state_transition_reason)
+                    if match:
+                        state_transition_time = match.group(1)
+
+                # Calculate total disk size from all volumes
+                disk_size_gb = 0
+                for block_device in instance.get('BlockDeviceMappings', []):
+                    if 'Ebs' in block_device:
+                        volume_id = block_device['Ebs']['VolumeId']
+                        try:
+                            volume = ec2_client.describe_volumes(VolumeIds=[volume_id])['Volumes'][0]
+                            disk_size_gb += volume['Size']
+                        except Exception as e:
+                            logger.warning(f"Failed to get volume {volume_id} size: {e}")
+
+                # Extract IAM role name from IamInstanceProfile ARN
+                iam_role = 'N/A'
+                if 'IamInstanceProfile' in instance:
+                    iam_arn = instance['IamInstanceProfile'].get('Arn', '')
+                    # ARN format: arn:aws:iam::123456789012:instance-profile/RoleName
+                    if iam_arn:
+                        iam_role = iam_arn.split('/')[-1]
+
                 instance_data = {
                     'InstanceId': instance['InstanceId'],
                     'LaunchTime': instance['LaunchTime'],
                     'State': instance['State']['Name'],
+                    'StateTransitionReason': state_transition_reason,
+                    'StateTransitionTime': state_transition_time,
                     'ImageId': instance['ImageId'],
                     'InstanceName': 'N/A',  # Default value for instance name
                     'AccountId': account_id,
                     'AccountName': account_name,
-                    'Region': region
+                    'Region': region,
+                    'PublicIPAddress': instance.get('PublicIpAddress', 'N/A'),
+                    'KeyName': instance.get('KeyName', 'N/A'),
+                    'PlatformDetails': instance.get('PlatformDetails', 'N/A'),
+                    'HttpTokens': instance.get('MetadataOptions', {}).get('HttpTokens', 'N/A'),
+                    'IAMRole': iam_role,
+                    'DiskSizeGB': disk_size_gb
                 }
 
                 # Get instance name from tags
@@ -113,6 +150,7 @@ def get_ec2_instances(region, session, account_id, account_name):
                             'AmiState': 'AMI MISSING',
                             'AmiPublic': 'AMI MISSING'
                         }
+                        pass
                 # Use the stored AMI details from the hash
                 instance_data.update(ami_hash[ami_id])
                 instances.append(instance_data)
@@ -140,18 +178,22 @@ def list_accounts():
         raise
     return accounts
 
-def write_csv(outfile, data):
+def write_csv(outfile, data, write_header=False):
     """Write the EC2 instance data to a CSV file."""
     fieldnames = [
-        'AccountId', 'AccountName', 'Region', 'InstanceId', 'LaunchTime', 'State', 'ImageId', 'InstanceName',
+        'AccountId', 'AccountName', 'Region', 'InstanceId', 'InstanceName', 'LaunchTime', 'State',
+        'StateTransitionReason', 'StateTransitionTime', 'ImageId', 'PublicIPAddress', 'KeyName',
+        'PlatformDetails', 'HttpTokens', 'IAMRole', 'DiskSizeGB',
         'AmiName', 'AmiDescription', 'AmiCreationDate', 'AmiOwner', 'AmiImageOwnerAlias', 'AmiDeprecationTime',
         'AmiImdsSupport', 'AmiLastLaunchedTime', 'AmiImageAllowed', 'AmiSourceImageId', 'AmiState', 'AmiPublic'
     ]
-    with open(outfile, mode='w', newline='') as file:
+    mode = 'w' if write_header else 'a'
+    with open(outfile, mode=mode, newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
+        if write_header:
+            writer.writeheader()
         writer.writerows(data)
-    logger.info(f"CSV report written to {outfile}")
+    logger.info(f"CSV report {'initialized' if write_header else 'updated'} at {outfile}")
 
 def main():
     parser = argparse.ArgumentParser(description='Fetch EC2 instance and AMI details across all accounts in the organization.')
@@ -163,7 +205,8 @@ def main():
     # Get all account IDs in the organization
     accounts = list_accounts()
 
-    all_instances = []
+    # Initialize the CSV file with headers
+    write_csv(args.outfile, [], write_header=True)
 
     # Loop through each account and assume the role
     for account_id in accounts:
@@ -189,16 +232,18 @@ def main():
             logger.info(f"Processing region {region} for account {account_id}")
             try:
                 instances = get_ec2_instances(region, session, account_id, account_name)
-                all_instances.extend(instances)
+                # Write to CSV after each region completes
+                if instances:
+                    write_csv(args.outfile, instances, write_header=False)
             except ClientError as e:
                 logger.warning(f"Region {region} is blocked due to permissions: {e}")
-
-    # Write results to CSV
-    write_csv(args.outfile, all_instances)
 
 if __name__ == '__main__':
     try:
         main()
+    except KeyboardInterrupt:
+        logger.info("\nOperation cancelled by user (Ctrl-C)")
+        exit(0)
     except Exception as e:
         logger.critical(f"Fatal error: {e}")
         raise
