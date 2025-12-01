@@ -79,8 +79,12 @@ def detect_os_version(ami_name):
         return 'Amazon Linux 2'
 
     # Amazon Linux 1 (Legacy)
-    if re.match(r'^amzn-ami-hvm-201[7-9]\.', ami_name):
+    if re.match(r'^amzn-ami-.*-201[7-9]\.', ami_name):
         return 'Amazon Linux'
+
+    # EKS nodes (non-AL2023)
+    if re.match(r'^amazon-eks-.*-node-', ami_name):
+        return 'Amazon EKS Optimized'
 
     # Ubuntu with version detection
     ubuntu_match = re.search(r'ubuntu-(bionic|focal|jammy|noble)-(\d+\.\d+)', ami_name)
@@ -100,6 +104,54 @@ def detect_os_version(ami_name):
         elif 'noble' in ami_name:
             return 'Ubuntu 24.04 LTS'
         return 'Ubuntu'
+
+    # Debian with version number (e.g., debian-12-amd64)
+    debian_version_match = re.search(r'debian-(\d+)-', ami_name)
+    if debian_version_match:
+        version = debian_version_match.group(1)
+        # Map version numbers to codenames
+        version_map = {
+            '8': 'Jessie',
+            '9': 'Stretch',
+            '10': 'Buster',
+            '11': 'Bullseye',
+            '12': 'Bookworm',
+            '13': 'Trixie'
+        }
+        codename = version_map.get(version, '')
+        if codename:
+            return f'Debian {version} ({codename})'
+        return f'Debian {version}'
+
+    # Debian with codename (crucible-base-bookworm, etc.)
+    if 'bookworm' in ami_name.lower():
+        return 'Debian 12 (Bookworm)'
+    elif 'bullseye' in ami_name.lower():
+        return 'Debian 11 (Bullseye)'
+    elif 'buster' in ami_name.lower():
+        return 'Debian 10 (Buster)'
+    elif 'trixie' in ami_name.lower():
+        return 'Debian 13 (Trixie)'
+    elif 'stretch' in ami_name.lower():
+        return 'Debian 9 (Stretch)'
+    elif 'jessie' in ami_name.lower():
+        return 'Debian 8 (Jessie)'
+
+    # Generic Debian
+    if 'debian' in ami_name.lower():
+        return 'Debian'
+
+    # Bottlerocket (container-optimized OS)
+    if re.match(r'^bottlerocket-', ami_name):
+        return 'Bottlerocket'
+
+    # Cloud9 environments
+    if re.match(r'^Cloud9', ami_name):
+        if 'AmazonLinux2023' in ami_name:
+            return 'Amazon Linux 2023 (Cloud9)'
+        elif 'Ubuntu22' in ami_name:
+            return 'Ubuntu 22.04 LTS (Cloud9)'
+        return 'Cloud9'
 
     # Windows Server
     windows_match = re.search(r'[Ww]indows\s+(\d{4})', ami_name)
